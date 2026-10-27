@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Tier Up</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d28;
+    --text: #f0f0f5;
+    --muted: #8b8fa3;
+    --tier-s: #e53935;
+    --tier-a: #fb8c00;
+    --tier-b: #fdd835;
+    --tier-c: #43a047;
+    --tier-f: #1e88e5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .screen { display: none; padding: 20px; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ===== TELA DE ENTRADA ===== */
+  #entry { justify-content: center; align-items: center; text-align: center; }
+  #entry h1 {
+    font-size: clamp(2.5rem, 10vw, 4rem);
+    font-weight: 900;
+    letter-spacing: -2px;
+    background: linear-gradient(135deg, var(--tier-s), var(--tier-a), var(--tier-b), var(--tier-c), var(--tier-f));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 32px;
+  }
+  input {
+    width: 100%;
+    max-width: 360px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.1);
+    background: var(--card);
+    color: var(--text);
+    font-size: 16px;
+    margin-bottom: 12px;
+    text-align: center;
+    outline: none;
+  }
+  input:focus { border-color: var(--tier-a); }
+  .btn {
+    padding: 16px 32px;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+    width: 100%;
+    max-width: 360px;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--tier-a), var(--tier-s));
+    color: white;
+    box-shadow: 0 4px 16px rgba(229,57,53,0.3);
+  }
+  .btn-secondary {
+    background: var(--card);
+    color: var(--text);
+    border: 2px solid rgba(255,255,255,0.1);
+  }
+  .or-divider {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  /* ===== LOBBY ===== */
+  #lobby { align-items: center; }
+  .room-code-box {
+    background: linear-gradient(135deg, var(--tier-s), var(--tier-a));
+    padding: 20px 40px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .room-code-box small { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: .9; }
+  .room-code-box .code { font-size: clamp(2rem, 8vw, 3.5rem); font-weight: 900; letter-spacing: 8px; }
+  .players-list {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 24px;
+  }
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--card);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+  .player-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--tier-a), var(--tier-s));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 18px;
+  }
+  .player-name { font-weight: 600; flex: 1; }
+  .player-host { font-size: 11px; color: var(--tier-a); text-transform: uppercase; letter-spacing: 1px; }
+  .btn-start { width: 100%; max-width: 400px; margin-top: 16px; }
+  .btn-start:disabled { opacity: .4; cursor: not-allowed; }
+  .copy-link { color: var(--tier-a); font-size: 13px; margin-top: 12px; text-decoration: underline; cursor: pointer; }
+
+  /* ===== GAME: ANSERING ===== */
+  .theme-label {
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .theme-title {
+    font-size: clamp(1.5rem, 6vw, 2.5rem);
+    font-weight: 900;
+    margin-bottom: 32px;
+    line-height: 1.1;
+  }
+  .my-tier {
+    display: inline-block;
+    padding: 16px 32px;
+    border-radius: 16px;
+    font-size: 3rem;
+    font-weight: 900;
+    color: white;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  }
+  .timer {
+    font-size: 4rem;
+    font-weight: 900;
+    text-align: center;
+    margin: 16px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  textarea {
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.1);
+    background: var(--card);
+    color: var(--text);
+    font-size: 16px;
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+    outline: none;
+    margin-bottom: 12px;
+  }
+  textarea:focus { border-color: var(--tier-a); }
+
+  /* ===== GAME: DISCUSSION BOARD ===== */
+  .tier-row {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 12px;
+    border-radius: 12px;
+    min-height: 80px;
+  }
+  .tier-row.s { background: rgba(229,57,53,.15); border-left: 4px solid var(--tier-s); }
+  .tier-row.a { background: rgba(251,140,0,.15); border-left: 4px solid var(--tier-a); }
+  .tier-row.b { background: rgba(253,216,53,.15); border-left: 4px solid var(--tier-b); }
+  .tier-row.c { background: rgba(67,160,71,.15); border-left: 4px solid var(--tier-c); }
+  .tier-row.f { background: rgba(30,136,229,.15); border-left: 4px solid var(--tier-f); }
+  .tier-label {
+    font-size: 2rem;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tier-label.s { color: var(--tier-s); }
+  .tier-label.a { color: var(--tier-a); }
+  .tier-label.b { color: var(--tier-b); }
+  .tier-label.c { color: var(--tier-c); }
+  .tier-label.f { color: var(--tier-f); }
+  .answer-card {
+    background: var(--card);
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.05);
+    word-break: break-word;
+  }
+  .answer-card strong { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+
+  /* ===== JUIZ / PODER ===== */
+  .tier-options {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .tier-btn {
+    padding: 20px 8px;
+    border-radius: 12px;
+    border: none;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: white;
+    cursor: pointer;
+    transition: transform .15s;
+  }
+  .tier-btn:active { transform: scale(.92); }
+  .tier-btn.s { background: var(--tier-s); }
+  .tier-btn.a { background: var(--tier-a); }
+  .tier-btn.b { background: var(--tier-b); }
+  .tier-btn.c { background: var(--tier-c); }
+  .tier-btn.f { background: var(--tier-f); }
+  .power-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .power-btn {
+    padding: 16px 8px;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.1);
+    background: var(--card);
+    color: var(--text);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .power-btn:disabled { opacity: .3; cursor: not-allowed; }
+  .power-btn.up { border-color: var(--tier-c); }
+  .power-btn.down { border-color: var(--tier-s); }
+
+  .role-notice {
+    background: linear-gradient(135deg, var(--tier-a), var(--tier-s));
+    padding: 16px 20px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: 700;
+    margin-bottom: 16px;
+    font-size: 1.1rem;
+  }
+  .discussing-notice {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    color: var(--muted);
+    border: 2px solid rgba(255,255,255,0.05);
+  }
+
+  /* ===== REVIEW ===== */
+  .review-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    background: var(--card);
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .tier-badge {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: white; font-size: 1.2rem;
+  }
+  .score-box {
+    text-align: center;
+    padding: 20px;
+    background: var(--card);
+    border-radius: 16px;
+    margin: 16px 0;
+  }
+  .score-box .num { font-size: 3rem; font-weight: 900; }
+  .score-box .num.positive { color: var(--tier-c); }
+  .score-box .num.negative { color: var(--tier-s); }
+
+  /* ===== FINAL ===== */
+  .final-score {
+    display: grid;
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .final-row {
+    padding: 16px;
+    background: var(--card);
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .final-row.best { border: 2px solid var(--tier-c); }
+
+  /* ===== RESPONSIVO ===== */
+  @media (min-width: 768px) {
+    .screen { padding: 40px; }
+    .theme-title { font-size: 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TELA 1: ENTRADA -->
+<div id="entry" class="screen active">
+  <h1>TIER UP</h1>
+  <input id="inputName" type="text" placeholder="Seu nome" maxlength="20" />
+  <button class="btn btn-primary" id="btnCreate">Criar sala</button>
+  <div class="or-divider">ou entre em uma sala existente</div>
+  <input id="inputCode" type="text" placeholder="Código da sala" maxlength="4" style="text-transform: uppercase;" />
+  <button class="btn btn-secondary" id="btnJoin">Entrar</button>
+</div>
+
+<!-- TELA 2: LOBBY -->
+<div id="lobby" class="screen">
+  <div class="room-code-box">
+    <small>Código da sala</small>
+    <div class="code" id="displayCode">----</div>
+  </div>
+  <div class="players-list" id="playersList"></div>
+  <button class="btn btn-primary btn-start" id="btnStart" disabled>Iniciar partida (3+ jogadores)</button>
+  <div class="copy-link" id="copyLink">Copiar link da sala</div>
+</div>
+
+<!-- TELA 3: GAME -->
+<div id="game" class="screen">
+  <div id="gameContent"></div>
+</div>
+
+<script>
+const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+let ws, myState = {};
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function connect(name, code, host) {
+  ws = new WebSocket(WS_URL);
+  ws.onmessage = (ev) => {
+    const data = JSON.parse(ev.data);
+    if (data.type === 'joined') {
+      myState = { code: data.code, host: data.host, name };
+      document.getElementById('displayCode').textContent = data.code;
+      if (code) {
+        showScreen('lobby');
+      } else {
+        showScreen('lobby');
+      }
+      return;
+    }
+    if (data.error === 'sala_nao_encontrada') {
+      alert('Sala não encontrada');
+      return;
+    }
+    renderState(data);
+  };
+  ws.onopen = () => ws.send(JSON.stringify({ type: 'join', data: { name, code, host } }));
+  ws.onclose = () => console.log('ws closed');
+}
+
+document.getElementById('btnCreate').onclick = () => {
+  const name = document.getElementById('inputName').value.trim();
+  if (!name) return alert('Digite seu nome');
+  connect(name, '', true);
+};
+
+document.getElementById('btnJoin').onclick = () => {
+  const name = document.getElementById('inputName').value.trim();
+  const code = document.getElementById('inputCode').value.trim().toUpperCase();
+  if (!name) return alert('Digite seu nome');
+  if (!code) return alert('Digite o código da sala');
+  connect(name, code, false);
+};
+
+document.getElementById('btnStart').onclick = () => ws.send(JSON.stringify({ type: 'start' }));
+document.getElementById('copyLink').onclick = () => {
+  navigator.clipboard.writeText(`${location.origin}/?code=${myState.code}`);
+  alert('Link copiado!');
+};
+
+function renderState(d) {
+  myState = { ...myState, ...d };
+  if (d.players) renderLobby(d.players, d.canStart);
+  if (d.phase === 'lobby') return;
+  showScreen('game');
+  const phase = d.phase;
+  if (phase === 'answering') renderAnswering(d);
+  else if (phase === 'discussing') renderDiscussing(d);
+  else if (phase === 'power') renderPower(d);
+  else if (phase === 'review') renderReview(d);
+  else if (phase === 'final') renderFinal(d);
+}
+
+function renderLobby(players, canStart) {
+  const list = document.getElementById('playersList');
+  list.innerHTML = '';
+  players.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    row.innerHTML = `
+      <div class="player-avatar">${p.name.charAt(0).toUpperCase()}</div>
+      <div class="player-name">${p.name}</div>
+      ${p.host ? '<div class="player-host">Host</div>' : ''}
+    `;
+    list.appendChild(row);
+  });
+  document.getElementById('btnStart').disabled = !canStart;
+}
+
+function renderAnswering(d) {
+  const tierColors = { S: 'var(--tier-s)', A: 'var(--tier-a)', B: 'var(--tier-b)', C: 'var(--tier-c)', F: 'var(--tier-f)' };
+  const remaining = Math.max(0, Math.ceil((d.timerEnd - Date.now()) / 1000));
+  document.getElementById('gameContent').innerHTML = `
+    <div class="theme-label">Tema</div>
+    <div class="theme-title">${d.currentTheme}</div>
+    <div style="text-align:center;">Sua letra:</div>
+    <div style="text-align:center;"><div class="my-tier" style="background:${tierColors[d.myTier]}">${d.myTier}</div></div>
+    <div class="timer" id="timer">${remaining}s</div>
+    ${d.iAnswered
+      ? '<div style="text-align:center;color:var(--muted);">✓ Resposta enviada, aguarde os outros</div>'
+      : `<textarea id="answerText" placeholder="Escreva sua resposta..." maxlength="100"></textarea>
+         <button class="btn btn-primary" id="btnAnswer">Confirmar resposta</button>`
+    }
+  `;
+  if (!d.iAnswered) {
+    document.getElementById('btnAnswer').onclick = () => {
+      const text = document.getElementById('answerText').value.trim();
+      if (!text) return alert('Escreva uma resposta');
+      ws.send(JSON.stringify({ type: 'answer', data: { text } }));
+    };
+  }
+  if (d.myTier) startTimer(d.timerEnd);
+}
+
+function renderDiscussing(d) {
+  const board = d.board || [];
+  const cards = board.map(a => `<div class="answer-card"><strong>${a.playerName}</strong>${a.text}</div>`).join('');
+  const tierRows = ['S', 'A', 'B', 'C', 'F'].map(tier => `<div class="tier-row ${tier.toLowerCase()}">
+      <div class="tier-label ${tier.toLowerCase()}">${tier}</div>
+      <div></div>
+    </div>`).join('');
+
+  let notice = '';
+  if (d.iAmTarget) {
+    notice = `<div class="role-notice">Sua resposta está sendo discutida!</div>`;
+  } else if (d.iAmJudge) {
+    notice = `<div class="role-notice">Você decide a posição desta resposta</div>`;
+  } else {
+    notice = `<div class="discussing-notice">Hora de discutir!</div>`;
+  }
+
+  const tierOptions = d.iAmJudge ? `
+    <div class="tier-options">
+      <button class="tier-btn s" onclick="place('S')">S</button>
+      <button class="tier-btn a" onclick="place('A')">A</button>
+      <button class="tier-btn b" onclick="place('B')">B</button>
+      <button class="tier-btn c" onclick="place('C')">C</button>
+      <button class="tier-btn f" onclick="place('F')">F</button>
+    </div>
+  ` : '';
+
+  document.getElementById('gameContent').innerHTML = `
+    <div class="theme-label">Tema</div>
+    <div class="theme-title" style="font-size:1.5rem">${d.currentTheme}</div>
+    <div style="text-align:center;font-size:13px;color:var(--muted);margin-bottom:12px;">
+      Resposta de <strong style="color:var(--text)">${d.discussingPlayerName}</strong>
+    </div>
+    <div class="answer-card" style="margin-bottom:16px;text-align:center;"><strong>Resposta sorteada</strong>${d.discussingText || ''}</div>
+    ${notice}
+    <div class="board-stack">${tierRows}</div>
+    <div style="margin-top:12px;"><strong>Outras respostas</strong>${cards}</div>
+    ${tierOptions}
+  `;
+}
+
+function renderPower(d) {
+  const remaining = Math.max(0, Math.ceil((d.timerEnd - Date.now()) / 1000));
+  let notice = '';
+  if (d.iAmTarget) {
+    notice = `<div class="discussing-notice">Sua resposta está sendo discutida — você também pode usar poder</div>`;
+  } else if (d.iAmJudge) {
+    notice = `<div class="discussing-notice">Você é o juiz — você também pode usar poder</div>`;
+  } else if (d.myUsedPower) {
+    notice = `<div class="discussing-notice">Você já usou seu poder neste tema</div>`;
+  } else {
+    notice = `<div class="role-notice">Use seu poder! (${remaining}s)</div>`;
+  }
+  const disabled = d.myUsedPower;
+  document.getElementById('gameContent').innerHTML = `
+    <div class="theme-label">Tema</div>
+    <div class="theme-title" style="font-size:1.5rem">${d.currentTheme}</div>
+    <div style="text-align:center;font-size:13px;color:var(--muted);margin-bottom:12px;">
+      Resposta de <strong style="color:var(--text)">${d.discussingPlayerName}</strong>
+    </div>
+    ${notice}
+    <div class="power-options">
+      <button class="power-btn up" ${disabled ? 'disabled' : ''} onclick="power(1)">↑ Subir 1 tier</button>
+      <button class="power-btn" ${disabled ? 'disabled' : ''} onclick="power(0)">Não fazer nada</button>
+      <button class="power-btn down" ${disabled ? 'disabled' : ''} onclick="power(-1)">↓ Descer 1 tier</button>
+    </div>
+  `;
+}
+
+function renderReview(d) {
+  const r = d.review;
+  let rows = '';
+  r.answers.forEach(a => {
+    const origIdx = ['S','A','B','C','F'].indexOf(a.original);
+    const placIdx = ['S','A','B','C','F'].indexOf(a.placed);
+    const diff = Math.abs(origIdx - placIdx);
+    const pts = diff === 0 ? 3 : diff === 1 ? 1 : -1;
+    const ptsClass = pts > 0 ? 'positive' : pts < 0 ? 'negative' : '';
+    rows += `<div class="review-row">
+      <div class="tier-badge" style="background:var(--tier-${a.placed.toLowerCase()})">${a.placed}</div>
+      <div><strong>${a.playerName}</strong><br><span style="color:var(--muted);font-size:13px">${a.text}</span></div>
+      <div style="color:var(--muted);font-size:12px;text-align:right;">Original: ${a.original}</div>
+      <div style="font-weight:900;font-size:1.2rem;" class="${ptsClass}">${pts > 0 ? '+' : ''}${pts}</div>
+    </div>`;
+  });
+  const total = r.score;
+  const totalClass = total > 0 ? 'positive' : total < 0 ? 'negative' : '';
+  document.getElementById('gameContent').innerHTML = `
+    <div class="theme-label">Rodada ${d.round} de 5</div>
+    <div class="theme-title" style="font-size:1.5rem">${r.theme}</div>
+    <div class="score-box">
+      <div style="color:var(--muted);margin-bottom:8px;">Pontuação do grupo</div>
+      <div class="num ${totalClass}">${total > 0 ? '+' : ''}${total}</div>
+    </div>
+    ${rows}
+    ${d.nextRound && d.host ? `<button class="btn btn-primary" style="margin-top:16px;" onclick="ws.send(JSON.stringify({type:'nextRound'}))">Próximo tema →</button>` : ''}
+  `;
+}
+
+function renderFinal(d) {
+  let rows = '';
+  let best = -Infinity, bestIdx = -1;
+  d.results.forEach((r, i) => {
+    if (r.score > best) { best = r.score; bestIdx = i; }
+    rows += `<div class="final-row ${i === bestIdx ? 'best' : ''}">
+      <div><strong>Rodada ${i+1}</strong><br><span style="color:var(--muted);font-size:13px">${r.theme}</span></div>
+      <div style="font-weight:900;font-size:1.5rem;">${r.score > 0 ? '+' : ''}${r.score}</div>
+    </div>`;
+  });
+  const total = d.results.reduce((s, r) => s + r.score, 0);
+  document.getElementById('gameContent').innerHTML = `
+    <div style="text-align:center;margin-top:32px;">
+      <div style="font-size:12px;letter-spacing:3px;color:var(--muted);">RESULTADO FINAL</div>
+      <h1 style="font-size:3rem;font-weight:900;margin:16px 0;">${total > 0 ? '+' : ''}${total}</h1>
+    </div>
+    <div class="final-score">${rows}</div>
+    <button class="btn btn-secondary" onclick="location.reload()" style="margin-top:24px;">Jogar de novo</button>
+  `;
+}
+
+function place(tier) { ws.send(JSON.stringify({ type: 'judge', data: { tier } })); }
+function power(choice) { ws.send(JSON.stringify({ type: 'power', data: { choice } })); }
+
+function startTimer(timerEnd) {
+  const el = document.getElementById('timer');
+  if (!el) return;
+  const t = setInterval(() => {
+    const rem = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
+    el.textContent = `${rem}s`;
+    if (rem <= 0) clearInterval(t);
+  }, 250);
+}
+
+// Auto-join por link
+const params = new URLSearchParams(location.search);
+if (params.get('code')) {
+  document.getElementById('inputCode').value = params.get('code');
+}
+</script>
+</body>
+</html>

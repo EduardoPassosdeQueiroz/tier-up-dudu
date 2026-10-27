@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: tier-up
+    runtime: go
+    plan: free
+    buildCommand: go build -o tierup .
+    startCommand: ./tierup
+    healthCheckPath: /healthz
+    autoDeploy: true

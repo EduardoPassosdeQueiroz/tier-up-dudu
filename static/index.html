@@ -453,8 +453,6 @@ function renderAnswering(d) {
 }
 
 function renderDiscussing(d) {
-  const board = d.board || [];
-  const cards = board.map(a => `<div class="answer-card"><strong>${a.playerName}</strong>${a.text}</div>`).join('');
   const tierRows = ['S', 'A', 'B', 'C', 'F'].map(tier => `<div class="tier-row ${tier.toLowerCase()}">
       <div class="tier-label ${tier.toLowerCase()}">${tier}</div>
       <div></div>
@@ -488,7 +486,6 @@ function renderDiscussing(d) {
     <div class="answer-card" style="margin-bottom:16px;text-align:center;"><strong>Resposta sorteada</strong>${d.discussingText || ''}</div>
     ${notice}
     <div class="board-stack">${tierRows}</div>
-    <div style="margin-top:12px;"><strong>Outras respostas</strong>${cards}</div>
     ${tierOptions}
   `;
 }
@@ -497,7 +494,7 @@ function renderPower(d) {
   const remaining = Math.max(0, Math.ceil((d.timerEnd - Date.now()) / 1000));
   let notice = '';
   if (d.iAmTarget) {
-    notice = `<div class="discussing-notice">Sua resposta está sendo discutida — você também pode usar poder</div>`;
+    notice = `<div class="discussing-notice">Sua resposta está sendo discutida — você não pode usar o poder</div>`;
   } else if (d.iAmJudge) {
     notice = `<div class="discussing-notice">Você é o juiz — você também pode usar poder</div>`;
   } else if (d.myUsedPower) {
@@ -505,7 +502,7 @@ function renderPower(d) {
   } else {
     notice = `<div class="role-notice">Use seu poder! (${remaining}s)</div>`;
   }
-  const disabled = d.myUsedPower;
+  const disabled = d.myUsedPower || d.iAmTarget;
   document.getElementById('gameContent').innerHTML = `
     <div class="theme-label">Tema</div>
     <div class="theme-title" style="font-size:1.5rem">${d.currentTheme}</div>

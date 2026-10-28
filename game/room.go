@@ -349,8 +349,11 @@ func (r *Room) JudgePlace(judgeID string, tier Tier) bool {
 		p.PowerChoice = 0
 		p.powerChosen = false
 	}
+	// O autor da resposta em discussão não participa desta decisão de poder.
+	// Marcamos como resolvido para não bloquear o avanço antecipado da fase.
+	r.Players[entry.PlayerID].powerChosen = true
 	r.Phase = PhasePower
-	r.TimerEnd = time.Now().Add(15 * time.Second)
+	r.TimerEnd = time.Now().Add(25 * time.Second)
 	return true
 }
 
@@ -359,6 +362,13 @@ func (r *Room) SubmitPower(playerID string, choice int) bool {
 	defer r.mu.Unlock()
 	p := r.Players[playerID]
 	if p == nil || r.Phase != PhasePower || p.powerChosen {
+		return false
+	}
+	if r.DiscIdx >= len(r.Discussion) {
+		return false
+	}
+	entry := r.Answers[r.Discussion[r.DiscIdx]]
+	if entry.PlayerID == playerID {
 		return false
 	}
 	if choice < -1 || choice > 1 {
@@ -524,9 +534,6 @@ func (r *Room) ViewForPlayer(playerID string) map[string]any {
 			view["iAmTarget"] = playerID == entry.PlayerID
 			view["myUsedPower"] = p.UsedPower
 			view["timerEnd"] = r.TimerEnd.UnixMilli()
-			if r.Phase == PhaseDiscussing {
-				view["board"] = r.boardView()
-			}
 		}
 		return view
 	}
@@ -559,19 +566,6 @@ func (r *Room) playersSummary() []map[string]any {
 		})
 	}
 	return list
-}
-
-func (r *Room) boardView() []map[string]any {
-	board := []map[string]any{}
-	for _, a := range r.Answers {
-		board = append(board, map[string]any{
-			"playerId":   a.PlayerID,
-			"playerName": a.PlayerName,
-			"text":       a.Text,
-		})
-	}
-	rand.Shuffle(len(board), func(i, j int) { board[i], board[j] = board[j], board[i] })
-	return board
 }
 
 func ScoreDiff(original, placed Tier) int {

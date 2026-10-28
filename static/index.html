@@ -75,6 +75,11 @@
     color: var(--text);
     border: 2px solid rgba(255,255,255,0.1);
   }
+  #btnJoin {
+    border-color: rgba(255,255,255,0.25);
+    background: linear-gradient(rgba(255,255,255,0.04), rgba(255,255,255,0.04)), var(--card);
+    box-shadow: 0 2px 10px rgba(255,255,255,0.05);
+  }
   .or-divider {
     color: var(--muted);
     font-size: 13px;
@@ -323,7 +328,7 @@
 <div id="entry" class="screen active">
   <h1>TIER UP</h1>
   <input id="inputName" type="text" placeholder="Seu nome" maxlength="20" />
-  <button class="btn btn-primary" id="btnCreate">Criar sala</button>
+  <button class="btn btn-secondary" id="btnCreate">Criar sala</button>
   <div class="or-divider">ou entre em uma sala existente</div>
   <input id="inputCode" type="text" placeholder="Código da sala" maxlength="4" style="text-transform: uppercase;" />
   <button class="btn btn-secondary" id="btnJoin">Entrar</button>

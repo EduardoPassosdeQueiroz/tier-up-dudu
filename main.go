@@ -23,6 +23,8 @@ var (
 	conns    = make(map[string]*websocket.Conn) // playerID -> conn
 	connRoom = make(map[string]*game.Room)      // playerID -> room
 	connsMu  sync.RWMutex
+ writeMu sync.Mutex
+ broadcastMu sync.Mutex
 
 	upgrader = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
@@ -91,20 +93,26 @@ func getRoom(code string) *game.Room {
 	return rooms[code]
 }
 
+func writeJSON(conn *websocket.Conn, value any) error {
+ writeMu.Lock(); defer writeMu.Unlock(); conn.SetWriteDeadline(time.Now().Add(5*time.Second)); return conn.WriteJSON(value)
+}
+
 func broadcastView(room *game.Room) {
+ broadcastMu.Lock()
+ defer broadcastMu.Unlock()
 	connsMu.RLock()
 	defer connsMu.RUnlock()
-	for _, p := range room.Players {
-		conn := conns[p.ID]
+	for _, id := range room.PlayerIDs() {
+		conn := conns[id]
 		if conn == nil {
 			continue
 		}
-		view := room.ViewForPlayer(p.ID)
+		view := room.ViewForPlayer(id)
 		if view == nil {
 			continue
 		}
-		if err := conn.WriteJSON(view); err != nil {
-			log.Printf("write error para %s: %v", p.ID, err)
+		if err := writeJSON(conn, view); err != nil {
+			log.Printf("write error para %s: %v", id, err)
 		}
 	}
 }
@@ -116,7 +124,18 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var room *game.Room
+	conn.SetReadLimit(4096)
+ conn.SetReadDeadline(time.Now().Add(60*time.Second))
+ conn.SetPongHandler(func(string) error { return conn.SetReadDeadline(time.Now().Add(60*time.Second)) })
+ done:=make(chan struct{})
+ defer close(done)
+ go func() {
+ ticker:=time.NewTicker(20*time.Second); defer ticker.Stop()
+ for { select { case <-done: return; case <-ticker.C:
+ if err:=conn.WriteControl(websocket.PingMessage,nil,time.Now().Add(5*time.Second)); err!=nil {conn.Close();return}
+ } }
+ }()
+ var room *game.Room
 	var playerID string
 
 	defer func() {
@@ -127,6 +146,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			delete(connRoom, playerID)
 			connsMu.Unlock()
 			if room != nil {
+ room.Disconnect(playerID)
 				broadcastView(room)
 			}
 		}
@@ -145,12 +165,13 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		switch msg.Type {
 		case "join":
+ if playerID != "" { continue }
 			var join JoinMsg
 			json.Unmarshal(msg.Data, &join)
 			join.Name = strings.TrimSpace(join.Name)
 			join.Code = strings.ToUpper(strings.TrimSpace(join.Code))
-			if join.Name == "" || len(join.Name) > 20 {
-				conn.WriteJSON(map[string]string{"error": "nome_invalido"})
+			if join.Name == "" || len([]rune(join.Name)) > 20 {
+				writeJSON(conn, map[string]string{"error": "nome_invalido"})
 				continue
 			}
 
@@ -161,11 +182,11 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			} else {
 				room = getRoom(join.Code)
 				if room == nil {
-					conn.WriteJSON(map[string]string{"error": "sala_nao_encontrada"})
+					writeJSON(conn, map[string]string{"error": "sala_nao_encontrada"})
 					continue
 				}
 				playerID = uuid.New().String()
-				room.AddPlayer(playerID, join.Name, false)
+				if room.AddPlayer(playerID, join.Name, false)==nil { writeJSON(conn,map[string]string{"error":"partida_em_andamento"}); playerID=""; room=nil; continue }
 			}
 
 			connsMu.Lock()
@@ -173,11 +194,11 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			connRoom[playerID] = room
 			connsMu.Unlock()
 
-			conn.WriteJSON(map[string]any{
+			writeJSON(conn, map[string]any{
 				"type":  "joined",
 				"code":  room.Code,
-				"host":  room.Players[playerID].Host,
-				"phase": string(room.Phase),
+				"host":  room.IsHost(playerID),
+				"phase": room.ViewForPlayer(playerID)["phase"],
 			})
 			broadcastView(room)
 
@@ -185,7 +206,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			if room == nil {
 				continue
 			}
-			room.StartRound()
+			room.StartRound(playerID)
 			broadcastView(room)
 
 		case "answer":
@@ -194,10 +215,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			var ans AnswerMsg
 			json.Unmarshal(msg.Data, &ans)
-			allAnswered := room.SubmitAnswer(playerID, ans.Text)
-			if allAnswered {
-				room.BeginDiscussion()
-			}
+			room.SubmitAnswer(playerID, ans.Text)
 			broadcastView(room)
 
 		case "judge":
@@ -215,20 +233,26 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			var p PowerMsg
 			json.Unmarshal(msg.Data, &p)
-			allPowers := room.SubmitPower(playerID, p.Choice)
-			if allPowers {
-				room.ApplyPowers()
-			}
+			room.SubmitPower(playerID, p.Choice)
 			broadcastView(room)
 
 		case "nextRound":
 			if room == nil {
 				continue
 			}
-			room.StartRound()
+			room.StartRound(playerID)
 			broadcastView(room)
 
-		case "changeTheme":
+		case "continue":
+ if room != nil { room.Continue(playerID); broadcastView(room) }
+ case "kick":
+ var target struct { PlayerID string `json:"playerID"` }; json.Unmarshal(msg.Data,&target)
+ if room!=nil && room.Kick(playerID,target.PlayerID) {
+ connsMu.RLock(); kicked:=conns[target.PlayerID]; connsMu.RUnlock()
+ if kicked!=nil { writeJSON(kicked,map[string]string{"error":"removido"}); kicked.Close() }
+ broadcastView(room)
+ }
+ case "changeTheme":
 			if room != nil {
 				room.ChangeTheme(playerID)
 				broadcastView(room)
@@ -239,7 +263,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", fs)
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
 	http.HandleFunc("/ws", handleWebSocket)
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -255,7 +279,7 @@ func main() {
 		port = "8080"
 	}
 	go runExpiryTicker()
-	log.Printf("Tier Up rodando em http://localhost:%s", port)
+	log.Printf("Tier Du rodando em http://localhost:%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 

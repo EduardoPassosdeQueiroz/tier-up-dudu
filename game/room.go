@@ -2,6 +2,8 @@ package game
 
 import (
 	"math/rand"
+ "encoding/json"
+ "strings"
 	"sync"
 	"time"
 )
@@ -13,10 +15,11 @@ const (
 	TierA Tier = "A"
 	TierB Tier = "B"
 	TierC Tier = "C"
-	TierF Tier = "F"
+	TierE Tier = "E"
+ TierF Tier = "F"
 )
 
-var TierOrder = []Tier{TierS, TierA, TierB, TierC, TierF}
+var TierOrder = []Tier{TierS, TierA, TierB, TierC, TierE, TierF}
 
 func TierIndex(t Tier) int {
 	for i, v := range TierOrder {
@@ -45,7 +48,8 @@ const (
 	PhaseAnswering  Phase = "answering"
 	PhaseDiscussing Phase = "discussing"
 	PhasePower      Phase = "power"
-	PhaseReview     Phase = "review"
+	PhaseChanges Phase = "changes"
+ PhaseReview     Phase = "review"
 	PhaseFinal      Phase = "final"
 )
 
@@ -65,6 +69,7 @@ type Player struct {
 }
 
 type AnswerEntry struct {
+ LeaderName string `json:"leaderName,omitempty"`
 	PlayerID   string `json:"playerId"`
 	PlayerName string `json:"playerName"`
 	Text       string `json:"text"`
@@ -96,7 +101,10 @@ type Room struct {
 
 	TimerEnd time.Time
 
-	Results []*RoundResult
+	ThemeVotes map[string]bool
+ Revision int
+ Changes []map[string]any
+ Results []*RoundResult
 }
 
 func NewRoom(code string) *Room {
@@ -110,10 +118,11 @@ func NewRoom(code string) *Room {
 func (r *Room) AddPlayer(id, name string, host bool) *Player {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	p := &Player{
+	if r.Phase != PhaseLobby { return nil }
+ p := &Player{
 		ID:        id,
 		Name:      name,
-		Host:      host,
+		Host:      host || len(r.Order)==0,
 		Order:     len(r.Order),
 		Connected: true,
 	}
@@ -140,14 +149,20 @@ func (r *Room) judgeForAnswer(ownerID string) string {
 	if owner == nil || len(r.Order) == 0 {
 		return ""
 	}
-	next := (owner.Order + 1) % len(r.Order)
-	return r.Order[next]
+	for offset := 1; offset <= len(r.Order); offset++ {
+ id := r.Order[(owner.Order + offset) % len(r.Order)]
+ if p := r.Players[id]; p != nil && p.Connected { return id }
+ }
+ return ""
 }
 
 func (r *Room) assignTiers() {
-	tiers := []Tier{TierS, TierA, TierB, TierC, TierF}
+	tiers := append([]Tier(nil), TierOrder...)
+ rand.Shuffle(len(tiers), func(i,j int) { tiers[i],tiers[j]=tiers[j],tiers[i] })
+ i := 0
 	for _, p := range r.Players {
-		p.Assigned = tiers[rand.Intn(len(tiers))]
+		p.Assigned = tiers[i % len(tiers)]
+ i++
 		p.Answer = ""
 		p.Answered = false
 		p.UsedPower = false
@@ -157,54 +172,70 @@ func (r *Room) assignTiers() {
 }
 
 var Themes = []string{
-	"Comidas típicas de Natal", "Frutas tropicais", "Doces de festa infantil",
-	"Comidas de festa junina", "Pratos da culinária japonesa", "Sabores de pizza",
-	"Recheios de pastel", "Bebidas", "Sobremesas com chocolate",
-	"Animais marinhos", "Animais de fazenda", "Aves que não voam",
-	"Animais que vivem na África", "Animais extintos", "Animais que vivem no gelo",
-	"Insetos que voam", "Animais que vivem em rios", "Animais que possuem chifres",
-	"Vilões da Disney", "Personagens da Marvel/DC", "Youtubers",
-	"Personagens que dão mais medo em filmes", "Séries", "Personagens de Harry Potter",
-	"Personagens de séries de TV aberta", "Atores", "Filmes de animação",
-	"Países da Europa", "Lugares para se esconder num esconde-esconde mortal",
-	"Lugares para passar a lua de mel", "Lugares para levar alguém num primeiro encontro horrível",
-	"Pontos turísticos famosos", "Lugares para pedir alguém em casamento",
-	"Países da África", "Lugares para você dormir", "Lugares onde faz muito frio",
-	"Personagens de Clash Royale", "Mobs de Minecraft",
-	"Marcas de eletrônicos", "Jogos de tabuleiro", "Jogos online",
-	"Personagens fictícios que seriam presos na vida real",
-	"Coisas que você levaria para sobreviver numa ilha deserta",
-	"Coisas suspeitas de encontrar no porta-malas de um carro",
-	"Objetos valiosos após o fim do mundo",
-	"Coisas que você encontra debaixo da cama", "Desculpas para chegar atrasado",
-	"Coisas que não se deve falar num casamento", "Motivos para terminar um namoro",
-	"Coisas que irritam professores", "Objetos que podem machucar se caírem na cabeça",
-	"Presentes ruins de aniversário", "Coisas que dão medo durante a madrugada",
-	"Coisas que você não deveria pesquisar no Google",
-	"Jogadores brasileiros de futebol", "Times do Brasil", "Esportes olímpicos",
-	"Atletas que você não deixaria cuidar do seu filho", "Atletas que venceriam uma briga de bar",
-	"Bandas", "Maiores atletas da história", "Celebridades que seriam ótimos vilões",
-	"Cantoras pop internacionais",
-	"Super-poderes", "Dinossauros", "Invenções que não deveriam existir",
-	"Invenções que mudaram o mundo", "Órgãos do corpo humano",
-	"Objetos atuais que assustariam pessoas da Idade Média",
-	"O que você faria se pudesse parar o tempo", "Coisas que faria se pudesse viajar no tempo",
-	"Acontecimentos históricos",
-	"Marcas de carros", "Objetos de cozinha mais úteis", "Materiais escolares",
-	"É trair ou não", "Marcas de tênis", "Mínimo ou tratamento de princesa",
-	"Conhecidos atraentes", "Green flags e red flags", "Vergonha ou motivo de orgulho",
-	"Personagens que usam máscara", "Coisas que brilham no escuro",
-	"Profissões que utilizam uniformes", "Personagens fictícios com poderes de gelo",
-	"Objetos que podem ser encontrados no fundo do oceano", "Coisas proibidas em aviões",
-	"Personagens que morreram em filmes", "Coisas que custam mais de R$ 1 milhão",
-	"Objetos que existiam antes da internet", "Coisas úteis num apocalipse zumbi",
-	"Personagens fictícios que perderam alguma parte do corpo",
-	"Coisas que podem causar o fim da humanidade", "Personagens que traíram aliados",
-	"Objetos que poderiam ser armas improvisadas",
-	"Coisas encontradas numa casa abandonada",
-	"Personagens com identidade secreta",
-	"Coisas que um bilionário compraria por diversão",
-	"Coisas proibidas numa sociedade futurista",
+"Comidas típicas de Natal",
+"Frutas tropicais",
+"Doces/Salgados de aniversário",
+"Comidas de festa junina",
+"Sabores de pizza",
+"Bebidas",
+"Sobremesas com chocolate",
+"Animais marinhos",
+"Animais de fazenda",
+"Animais extintos",
+"Insetos",
+"Vilões da Disney",
+"Personagens da Marvel/DC",
+"Youtuberes",
+"Personagens que dão mais medo em filmes",
+"Séries",
+"Personagens com mais aura",
+"Personagens de séries de TV Aberta",
+"Filmes de animação",
+"Lugares para se esconder num esconde-esconde mortal",
+"Lugares para passar a lua de mel",
+"Lugares para levar alguém em um primeiro encontro horrível",
+"Melhores pontos turísticos",
+"Lugar para você dormir",
+"Personagens de Clash Royale",
+"Melhores Mobs de Minecraft",
+"Jogos de tabuleiro",
+"Jogos On-line",
+"Melhores personagens fictícios",
+"Coisas que você levaria para sobreviver em uma ilha deserta",
+"Coisas que seriam suspeitas de encontrar no porta-malas de um carro",
+"Objetos que seriam valiosos após o fim do mundo",
+"Desculpas para chegar atrasado",
+"Coisas que não se deve falar em um casamento",
+"Motivos para terminar um namoro",
+"Objetos que podem machucar se caírem na sua cabeça",
+"Presentes ruins de aniversário",
+"Coisas que você não deveria pesquisar no Google",
+"Jogadores brasileiros de futebol",
+"Maiores times do Brasil",
+"Melhores esportes olímpicos de se jogar",
+"Celebridade que você não deixaria cuidar do seu filho",
+"Você ganharia desse cara numa luta?",
+"Bandas e Cantores",
+"Super-poderes",
+"Dinossauros",
+"Invenções que não deveriam existir",
+"Invenções que mudaram o mundo",
+"Órgãos do corpo humano",
+"Objetos atuais que assustariam pessoas da Idade Média",
+"O que você faria se pudesse parar o tempo",
+"Coisas que você faria se pudesse viajar no tempo",
+"Objetos de cozinha mais úteis",
+"Materiais escolares",
+"É trair (S) ou não (F)",
+"Tratamento de princesa (S) ou mínimo",
+"Conhecidos bonitos (quem namora não discute)",
+"Red Flag (S) e Green Flag (F)",
+"Motivo de orgulho (S) ou vergonha (F)",
+"Melhores profissões (desconsidere salário)",
+"Coisas que custam mais de R$ 1 milhão",
+"Coisas que seriam úteis em um apocalipse zumbi",
+"Coisas que podem causar o fim da humanidade",
+"Personagens de animação mais atraentes",
 }
 
 func (r *Room) pickTheme() string {
@@ -219,19 +250,26 @@ func (r *Room) pickTheme() string {
 		}
 	}
 	if len(avail) == 0 {
-		return Themes[rand.Intn(len(Themes))]
+		r.UsedThemes = []string{r.CurrentTheme}
+ for _,t := range Themes { if t != r.CurrentTheme { avail=append(avail,t) } }
+ return avail[rand.Intn(len(avail))]
 	}
 	return avail[rand.Intn(len(avail))]
 }
 
-func (r *Room) StartRound() bool {
+func (r *Room) StartRound(requesterID string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.Round >= 5 {
+	if p := r.Players[requesterID]; p == nil || !p.Host || (r.Phase != PhaseLobby && r.Phase != PhaseReview) { return false }
+ if r.Phase == PhaseLobby && r.connectedCountLocked() < 3 { return false }
+ if r.Round >= 5 {
 		r.Phase = PhaseFinal
 		return false
 	}
 	r.Round++
+ r.Revision++
+ r.ThemeVotes = map[string]bool{}
+ r.Changes = nil
 	theme := r.pickTheme()
 	r.UsedThemes = append(r.UsedThemes, theme)
 	r.CurrentTheme = theme
@@ -240,7 +278,7 @@ func (r *Room) StartRound() bool {
 	r.DiscIdx = 0
 	r.assignTiers()
 	r.Phase = PhaseAnswering
-	r.TimerEnd = time.Now().Add(60 * time.Second)
+	r.TimerEnd = time.Now().Add(80 * time.Second)
 	return true
 }
 
@@ -248,10 +286,12 @@ func (r *Room) SubmitAnswer(playerID, text string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	p := r.Players[playerID]
-	if p == nil || p.Answered || r.Phase != PhaseAnswering {
+	if p == nil || !p.Connected || p.Answered || r.Phase != PhaseAnswering {
 		return false
 	}
-	p.Answer = text
+	text = strings.TrimSpace(text)
+ if text == "" || len([]rune(text)) > 100 { return false }
+ p.Answer = text
 	p.Answered = true
 	r.Answers = append(r.Answers, &AnswerEntry{
 		PlayerID:   p.ID,
@@ -259,16 +299,16 @@ func (r *Room) SubmitAnswer(playerID, text string) bool {
 		Text:       text,
 		Original:   p.Assigned,
 	})
-	return r.allAnsweredLocked()
+	if r.allAnsweredLocked() { r.beginDiscussionLocked(); return true }; return false
 }
 
 func (r *Room) allAnsweredLocked() bool {
 	for _, p := range r.Players {
-		if !p.Answered {
+		if p.Connected && !p.Answered {
 			return false
 		}
 	}
-	return len(r.Players) >= 3
+	return r.connectedCountLocked() > 0
 }
 
 // AdvanceExpired aplica automaticamente as transições cujo prazo terminou.
@@ -283,7 +323,7 @@ func (r *Room) AdvanceExpired(now time.Time) bool {
 	switch r.Phase {
 	case PhaseAnswering:
 		for _, p := range r.Players {
-			if p.Answered {
+			if p.Answered || !p.Connected {
 				continue
 			}
 			p.Answered = true
@@ -296,7 +336,10 @@ func (r *Room) AdvanceExpired(now time.Time) bool {
 		}
 		r.beginDiscussionLocked()
 		return true
-	case PhasePower:
+	case PhaseChanges:
+ r.advanceDiscussionLocked()
+ return true
+ case PhasePower:
 		r.applyPowersLocked()
 		return true
 	default:
@@ -307,7 +350,7 @@ func (r *Room) AdvanceExpired(now time.Time) bool {
 func (r *Room) BeginDiscussion() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.beginDiscussionLocked()
+	if r.Phase == PhaseAnswering { r.beginDiscussionLocked() }
 }
 
 func (r *Room) beginDiscussionLocked() {
@@ -340,10 +383,11 @@ func (r *Room) JudgePlace(judgeID string, tier Tier) bool {
 	}
 	entry := r.Answers[r.Discussion[r.DiscIdx]]
 	judge := r.judgeForAnswer(entry.PlayerID)
-	if judge != judgeID || r.Phase != PhaseDiscussing {
+	if judge != judgeID || r.Phase != PhaseDiscussing || TierIndex(tier) < 0 {
 		return false
 	}
 	entry.Placed = tier
+ entry.LeaderName = r.Players[judge].Name
 	entry.PlacedSet = true
 	for _, p := range r.Players {
 		p.PowerChoice = 0
@@ -353,7 +397,7 @@ func (r *Room) JudgePlace(judgeID string, tier Tier) bool {
 	// Marcamos como resolvido para não bloquear o avanço antecipado da fase.
 	r.Players[entry.PlayerID].powerChosen = true
 	r.Phase = PhasePower
-	r.TimerEnd = time.Now().Add(25 * time.Second)
+	r.TimerEnd = time.Now().Add(30 * time.Second)
 	return true
 }
 
@@ -361,7 +405,7 @@ func (r *Room) SubmitPower(playerID string, choice int) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	p := r.Players[playerID]
-	if p == nil || r.Phase != PhasePower || p.powerChosen {
+	if p == nil || !p.Connected || r.Phase != PhasePower || p.powerChosen {
 		return false
 	}
 	if r.DiscIdx >= len(r.Discussion) {
@@ -382,12 +426,12 @@ func (r *Room) SubmitPower(playerID string, choice int) bool {
 		p.UsedPower = true
 	}
 	p.powerChosen = true
-	return r.allPowersLocked()
+	if r.allPowersLocked() { r.applyPowersLocked(); return true }; return false
 }
 
 func (r *Room) allPowersLocked() bool {
 	for _, p := range r.Players {
-		if !p.powerChosen {
+		if p.Connected && !p.powerChosen {
 			return false
 		}
 	}
@@ -401,36 +445,37 @@ func (r *Room) ApplyPowers() bool {
 }
 
 func (r *Room) applyPowersLocked() bool {
-	if r.DiscIdx < len(r.Discussion) {
-		entry := r.Answers[r.Discussion[r.DiscIdx]]
-		if entry.PlacedSet {
-			delta := 0
-			for _, p := range r.Players {
-				if p.PowerChoice == 1 {
-					delta--
-				} else if p.PowerChoice == -1 {
-					delta++
-				}
-			}
-			if delta != 0 {
-				entry.Placed = ShiftTier(entry.Placed, delta)
-			}
-		}
-	}
-	for _, p := range r.Players {
-		p.PowerChoice = 0
-		p.powerChosen = false
-	}
-	r.DiscIdx++
-	if r.DiscIdx >= len(r.Discussion) {
-		r.finishRoundLocked()
-		r.Phase = PhaseReview
-		r.TimerEnd = time.Time{}
-		return false
-	}
-	r.Phase = PhaseDiscussing
-	r.TimerEnd = time.Time{}
-	return true
+ if r.Phase != PhasePower || r.DiscIdx >= len(r.Discussion) { return false }
+ entry := r.Answers[r.Discussion[r.DiscIdx]]
+ before := entry.Placed
+ delta := 0
+ r.Changes = nil
+ for _, id := range r.Order { p := r.Players[id]; if p.PowerChoice != 0 {
+ delta -= p.PowerChoice
+ r.Changes = append(r.Changes, map[string]any{"playerName":p.Name,"choice":p.PowerChoice})
+ } }
+ entry.Placed = ShiftTier(before, delta)
+ for _, p := range r.Players { p.PowerChoice = 0; p.powerChosen = false }
+ if len(r.Changes) > 0 {
+ for _, change := range r.Changes { change["before"] = before; change["after"] = entry.Placed }
+ r.Phase = PhaseChanges
+ r.TimerEnd = time.Now().Add(10*time.Second)
+ return true
+ }
+ return r.advanceDiscussionLocked()
+}
+
+func (r *Room) advanceDiscussionLocked() bool {
+ r.DiscIdx++
+ r.TimerEnd = time.Time{}
+ if r.DiscIdx >= len(r.Discussion) { r.finishRoundLocked(); r.Phase=PhaseReview; return false }
+ r.Phase=PhaseDiscussing
+ return true
+}
+
+func (r *Room) Continue(requesterID string) {
+ r.mu.Lock(); defer r.mu.Unlock()
+ if p:=r.Players[requesterID]; p!=nil && p.Host && r.Phase==PhaseChanges { r.advanceDiscussionLocked() }
 }
 
 func (r *Room) finishRoundLocked() {
@@ -457,46 +502,55 @@ func (r *Room) finishRoundLocked() {
 }
 
 func (r *Room) ChangeTheme(requesterID string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.Phase == PhaseLobby || r.Phase == PhaseFinal {
-		return
-	}
-	p := r.Players[requesterID]
-	if p == nil {
-		return
-	}
-	if !p.Host {
-		if r.Phase == PhaseDiscussing || r.Phase == PhasePower {
-			if r.DiscIdx >= len(r.Discussion) {
-				return
-			}
-			entry := r.Answers[r.Discussion[r.DiscIdx]]
-			if entry.PlayerID != requesterID {
-				return
-			}
-		} else {
-			return
-		}
-	}
-	newTheme := r.pickTheme()
-	if len(r.UsedThemes) > 0 {
-		r.UsedThemes[len(r.UsedThemes)-1] = newTheme
-	} else {
-		r.UsedThemes = append(r.UsedThemes, newTheme)
-	}
-	r.CurrentTheme = newTheme
-	r.Answers = nil
-	r.Discussion = nil
-	r.DiscIdx = 0
-	r.assignTiers()
-	r.Phase = PhaseAnswering
-	r.TimerEnd = time.Now().Add(60 * time.Second)
+ r.mu.Lock(); defer r.mu.Unlock()
+ p:=r.Players[requesterID]
+ if p==nil || !p.Connected || r.Phase!=PhaseAnswering { return }
+ if r.ThemeVotes==nil { r.ThemeVotes=map[string]bool{} }
+ r.ThemeVotes[requesterID]=true
+ if !p.Host && len(r.ThemeVotes)<=r.connectedCountLocked()/2 { return }
+ r.changeThemeLocked()
+}
+func (r *Room) changeThemeLocked() {
+ r.CurrentTheme=r.pickTheme()
+ r.UsedThemes=append(r.UsedThemes,r.CurrentTheme)
+ r.ThemeVotes=map[string]bool{}
+ r.Revision++
+ r.Answers=nil
+ for _, p:=range r.Players { p.Answer=""; p.Answered=false }
+ r.TimerEnd=time.Now().Add(80*time.Second)
+}
+func (r *Room) connectedCountLocked() int { n:=0; for _,p:=range r.Players { if p.Connected { n++ } }; return n }
+func (r *Room) PlayerIDs() []string { r.mu.RLock(); defer r.mu.RUnlock(); return append([]string(nil),r.Order...) }
+func (r *Room) Kick(hostID,targetID string) bool {
+ r.mu.Lock(); defer r.mu.Unlock()
+ h:=r.Players[hostID]
+ if h==nil || !h.Host || r.Phase!=PhaseLobby || hostID==targetID || r.Players[targetID]==nil { return false }
+ r.removeLobbyPlayerLocked(targetID); return true
+}
+func (r *Room) removeLobbyPlayerLocked(id string) {
+ delete(r.Players,id)
+ order:=[]string{}
+ for _,pid:=range r.Order { if pid!=id { r.Players[pid].Order=len(order); order=append(order,pid) } }
+ r.Order=order
+}
+func (r *Room) Disconnect(id string) {
+ r.mu.Lock(); defer r.mu.Unlock()
+ p:=r.Players[id]; if p==nil { return }; wasHost:=p.Host; p.Connected=false; p.Host=false
+ delete(r.ThemeVotes,id)
+ if r.Phase==PhaseLobby { r.removeLobbyPlayerLocked(id) }
+ if wasHost { for _,pid:=range r.Order { if next:=r.Players[pid]; next.Connected { next.Host=true; break } } }
+ if r.connectedCountLocked()==0 { return }
+ if r.Phase==PhaseAnswering {
+ if len(r.ThemeVotes)>r.connectedCountLocked()/2 { r.changeThemeLocked() } else if r.allAnsweredLocked() { r.beginDiscussionLocked() }
+ }
+ if r.Phase==PhasePower && r.allPowersLocked() { r.applyPowersLocked() }
 }
 
-func (r *Room) ViewForPlayer(playerID string) map[string]any {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *Room) ViewForPlayer(playerID string) (result map[string]any) {
+ r.mu.RLock()
+ defer r.mu.RUnlock()
+ // Detach slices and answer pointers before the socket serializes the view.
+ defer func() { if result!=nil { data,_:=json.Marshal(result); var snapshot map[string]any; json.Unmarshal(data,&snapshot); result=snapshot } }()
 	p := r.Players[playerID]
 	if p == nil {
 		return nil
@@ -507,14 +561,21 @@ func (r *Room) ViewForPlayer(playerID string) map[string]any {
 		"round":        r.Round,
 		"currentTheme": r.CurrentTheme,
 		"players":      r.playersSummary(),
-		"canStart":     p.Host && len(r.Players) >= 3,
+		"canStart": p.Host && r.connectedCountLocked() >= 3,
+ "host": p.Host, "myID": playerID, "revision":r.Revision,
+ "themeVotes":len(r.ThemeVotes), "themeVotesNeeded":r.connectedCountLocked()/2+1, "iVotedTheme":r.ThemeVotes[playerID],
 	}
 
 	if r.Phase == PhaseLobby {
 		return view
 	}
 
-	view["myTier"] = string(p.Assigned)
+	board := []map[string]any{}
+ for _,a:=range r.Answers { if a.PlacedSet { board=append(board,map[string]any{"text":a.Text,"playerName":a.PlayerName,"placed":a.Placed}) } }
+ view["board"]=board
+ view["myLeaderName"]=""
+ if leader:=r.Players[r.judgeForAnswer(playerID)]; leader!=nil { view["myLeaderName"]=leader.Name }
+ view["myTier"] = string(p.Assigned)
 	view["iAnswered"] = p.Answered
 
 	if r.Phase == PhaseAnswering {
@@ -522,7 +583,7 @@ func (r *Room) ViewForPlayer(playerID string) map[string]any {
 		return view
 	}
 
-	if r.Phase == PhaseDiscussing || r.Phase == PhasePower {
+	if r.Phase == PhaseDiscussing || r.Phase == PhasePower || r.Phase == PhaseChanges {
 		if r.DiscIdx < len(r.Discussion) {
 			entry := r.Answers[r.Discussion[r.DiscIdx]]
 			judge := r.judgeForAnswer(entry.PlayerID)
@@ -530,6 +591,10 @@ func (r *Room) ViewForPlayer(playerID string) map[string]any {
 			view["discussingPlayerName"] = entry.PlayerName
 			view["discussingText"] = entry.Text
 			view["judgeID"] = judge
+ if leader:=r.Players[judge]; leader!=nil { view["judgeName"]=leader.Name }
+ view["placed"]=entry.Placed
+ view["changes"]=r.Changes
+ view["myPowerChosen"]=p.powerChosen
 			view["iAmJudge"] = playerID == judge
 			view["iAmTarget"] = playerID == entry.PlayerID
 			view["myUsedPower"] = p.UsedPower
@@ -562,7 +627,7 @@ func (r *Room) playersSummary() []map[string]any {
 		list = append(list, map[string]any{
 			"id":   p.ID,
 			"name": p.Name,
-			"host": p.Host,
+			"host": p.Host, "connected":p.Connected,
 		})
 	}
 	return list

@@ -54,6 +54,7 @@ const (
 )
 
 type Player struct {
+	SessionToken string `json:"-"`
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Host      bool   `json:"host"`
@@ -122,7 +123,7 @@ func (r *Room) AddPlayer(id, name string, host bool) *Player {
  p := &Player{
 		ID:        id,
 		Name:      name,
-		Host:      host || len(r.Order)==0,
+		Host:      host || r.connectedCountLocked()==0,
 		Order:     len(r.Order),
 		Connected: true,
 	}
@@ -278,7 +279,7 @@ func (r *Room) StartRound(requesterID string) bool {
 	r.DiscIdx = 0
 	r.assignTiers()
 	r.Phase = PhaseAnswering
-	r.TimerEnd = time.Now().Add(80 * time.Second)
+	r.TimerEnd = time.Now().Add(90 * time.Second)
 	return true
 }
 
@@ -517,7 +518,7 @@ func (r *Room) changeThemeLocked() {
  r.Revision++
  r.Answers=nil
  for _, p:=range r.Players { p.Answer=""; p.Answered=false }
- r.TimerEnd=time.Now().Add(80*time.Second)
+ r.TimerEnd=time.Now().Add(90*time.Second)
 }
 func (r *Room) connectedCountLocked() int { n:=0; for _,p:=range r.Players { if p.Connected { n++ } }; return n }
 func (r *Room) PlayerIDs() []string { r.mu.RLock(); defer r.mu.RUnlock(); return append([]string(nil),r.Order...) }
@@ -537,7 +538,6 @@ func (r *Room) Disconnect(id string) {
  r.mu.Lock(); defer r.mu.Unlock()
  p:=r.Players[id]; if p==nil { return }; wasHost:=p.Host; p.Connected=false; p.Host=false
  delete(r.ThemeVotes,id)
- if r.Phase==PhaseLobby { r.removeLobbyPlayerLocked(id) }
  if wasHost { for _,pid:=range r.Order { if next:=r.Players[pid]; next.Connected { next.Host=true; break } } }
  if r.connectedCountLocked()==0 { return }
  if r.Phase==PhaseAnswering {

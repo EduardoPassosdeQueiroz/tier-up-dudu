@@ -19,7 +19,7 @@ func discussionRoom(t *testing.T) *Room {
 }
 func TestThemeVotesAndTiming(t *testing.T) {
  r:=testRoom(t); initial:=r.CurrentTheme; rev:=r.Revision
- if left:=time.Until(r.TimerEnd); left<79*time.Second || left>80*time.Second {t.Fatal(left)}
+ if left:=time.Until(r.TimerEnd); left<89*time.Second || left>90*time.Second {t.Fatal(left)}
  r.SubmitAnswer("h","rascunho confirmado")
  r.ChangeTheme("a"); r.ChangeTheme("a")
  if r.CurrentTheme!=initial {t.Fatal("duplicate vote changed theme")}
@@ -59,7 +59,7 @@ func TestHostKickAndDisconnect(t *testing.T) {
  r:=NewRoom("TEST");r.AddPlayer("h","Host",true);r.AddPlayer("a","Ana",false);r.AddPlayer("b","Bia",false);r.AddPlayer("c","Caio",false)
  if r.Kick("a","b") || r.Kick("h","h") {t.Fatal("unauthorized kick")}
  if !r.Kick("h","b") {t.Fatal("kick failed")};r.Disconnect("h")
- if !r.IsHost("a") || r.Players["c"].Order!=1 {t.Fatal("host order")}
+ if !r.IsHost("a") || r.Players["c"].Order!=2 {t.Fatal("host order")}
  r.AddPlayer("d","Duda",false);if !r.StartRound("a") {t.Fatal("new host start")}
  if r.Kick("a","c") || r.StartRound("c") || r.StartRound("a") {t.Fatal("phase guards")}
  r.Disconnect("a");if !r.IsHost("c") {t.Fatal("in-game host migration")}

@@ -344,10 +344,16 @@
   .review-row { grid-template-columns:1fr auto auto auto; }
   .kick { background:transparent; border:1px solid var(--tier-s); color:var(--text); padding:8px; border-radius:8px; cursor:pointer; }
   button:disabled { cursor:not-allowed; opacity:.45; }
+  .connection-status { position:sticky; top:0; z-index:10; padding:12px 20px; background:#4a320d; color:#fff1cd; text-align:center; font-weight:600; }
+  .theme-heading { border:1px solid #ffffff26; border-left:5px solid var(--tier-a); border-radius:16px; padding:20px 24px; margin:12px 0 24px; background:linear-gradient(120deg,var(--card),var(--bg)); }
+  .theme-heading .theme-label { color:var(--tier-a); font-size:13px; font-weight:800; letter-spacing:3px; }
+  .theme-heading .theme-title { margin:10px 0 0; font-size:clamp(1.5rem,5vw,2.8rem); line-height:1.2; overflow-wrap:anywhere; }
+  .round-label { color:var(--muted); font-size:12px; letter-spacing:1px; text-transform:uppercase; }
   @media(max-width:540px) { .entry-options { gap:12px; } .entry-options section { padding:14px 8px; } .entry-options .btn { padding:14px 8px; } .review-row { gap:8px; } .tier-row { grid-template-columns:44px 1fr; } .grade { font-size:10px; } }
 </style>
 </head>
 <body>
+<div id="connectionStatus" class="connection-status" role="status" aria-live="polite" hidden></div>
 
 <!-- TELA 1: ENTRADA -->
 <div id="entry" class="screen active">
@@ -381,21 +387,83 @@ const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.ho
 const TIERS=['S','A','B','C','E','F'];
 const LABELS={S:'Lendários',A:'Excelentes',B:'Consistentes',C:'Aceitáveis',E:'Ruim',F:'Desastrosos'};
 let ws, myState={}, timerInterval, draftKey='', draft='';
+const SESSION_KEY='tier-du-session-v1';
+let session=null, reconnectTimer, reconnectAttempt=0, heartbeatInterval, lastMessageAt=0, awaitingState=false;
+function readSession() {
+ try { const s=JSON.parse(sessionStorage.getItem(SESSION_KEY)||localStorage.getItem(SESSION_KEY)||'null'); return s?.token&&s?.code?s:null; } catch {return null;}
+}
+function saveSession() {
+ if(!session) return;
+ session.snapshot=myState.phase?myState:session.snapshot;
+ session.draftKey=draftKey; session.draft=draft;
+ const value=JSON.stringify(session);
+ try {sessionStorage.setItem(SESSION_KEY,value);} catch {}
+ try {localStorage.setItem(SESSION_KEY,value);} catch {}
+}
+function clearSession() {
+ session=null; clearTimeout(reconnectTimer); reconnectTimer=null; clearInterval(heartbeatInterval);
+ try {sessionStorage.removeItem(SESSION_KEY);} catch {}
+ try {localStorage.removeItem(SESSION_KEY);} catch {}
+}
+function connectionStatus(text='') {
+ const el=document.getElementById('connectionStatus'); el.textContent=text; el.hidden=!text;
+ document.querySelectorAll('#lobby button, #game button').forEach(button=>{
+  if(text) {if(!button.hasAttribute('data-before-disconnect')) button.dataset.beforeDisconnect=String(button.disabled); button.disabled=true;}
+  else if(button.hasAttribute('data-before-disconnect')) {button.disabled=button.dataset.beforeDisconnect==='true';delete button.dataset.beforeDisconnect;}
+ });
+}
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function send(type,data) { if(ws?.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type,data})); }
+function send(type,data) { if(ws?.readyState===WebSocket.OPEN && (!awaitingState || type==='join' || type==='ping')) ws.send(JSON.stringify({type,data})); }
 function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id)); }
-function connect(name,code) {
+function scheduleReconnect() {
+ if(!session || reconnectTimer) return;
+ connectionStatus('Reconectando à sala… Sua vaga e seu rascunho estão guardados.');
+ const delay=Math.min(1000*2**Math.min(reconnectAttempt++,4),10000);
+ reconnectTimer=setTimeout(()=>{reconnectTimer=null;connect(session.name,session.code,session.token);},delay);
+}
+function connect(name,code,token='') {
  if(ws && [WebSocket.OPEN,WebSocket.CONNECTING].includes(ws.readyState)) return;
- ws=new WebSocket(WS_URL);
- ws.onopen=()=>send('join',{name,code});
- ws.onmessage=ev=>{
+ const socket=new WebSocket(WS_URL); ws=socket; awaitingState=true;
+ if(token) connectionStatus('Reconectando à sala… Sua vaga e seu rascunho estão guardados.');
+ socket.onopen=()=>send('join',{name,code,token});
+ socket.onmessage=ev=>{
+  if(ws!==socket) return;
+  lastMessageAt=Date.now();
   const d=JSON.parse(ev.data);
-  if(d.type==='joined') { myState={code:d.code,host:d.host,name}; document.getElementById('displayCode').textContent=d.code; showScreen('lobby'); return; }
-  if(d.error) { const errors={sala_nao_encontrada:'Sala não encontrada.',nome_invalido:'Use um nome de até 20 caracteres.',partida_em_andamento:'Esta partida já começou.',removido:'O host removeu você da sala.'}; alert(errors[d.error]||d.error); ws.close(); return; }
+  if(d.type==='pong') return;
+  if(d.type==='sessionReplaced') {
+   session=null; clearTimeout(reconnectTimer); reconnectTimer=null; clearInterval(heartbeatInterval);
+   try {sessionStorage.removeItem(SESSION_KEY);} catch {}
+   ws=null; socket.close(); showScreen('entry');
+   connectionStatus('Sua sala foi aberta em outra aba. Continue jogando por lá.');
+   return;
+  }
+  if(d.type==='joined') {
+   myState={...myState,code:d.code,host:d.host,name:d.name||name};
+   session={...session,code:d.code,name:d.name||name,token:d.token}; saveSession();
+   document.getElementById('displayCode').textContent=d.code;
+   return;
+  }
+  if(d.error) {
+   const errors={sala_nao_encontrada:'Sala não encontrada.',nome_invalido:'Use um nome de até 20 caracteres.',partida_em_andamento:'Esta partida já começou.',removido:'O host removeu você da sala.',sessao_expirada:'Esta sala não está mais disponível. Crie uma nova sala ou entre em outra.'};
+   clearSession(); ws=null; socket.close(); connectionStatus(); showScreen('entry'); alert(errors[d.error]||d.error); return;
+  }
+  awaitingState=false; reconnectAttempt=0; clearTimeout(reconnectTimer); reconnectTimer=null;
   renderState(d);
+  connectionStatus();
+  clearInterval(heartbeatInterval);
+  heartbeatInterval=setInterval(()=>{
+   if(Date.now()-lastMessageAt>45000) {socket.close();return;}
+   send('ping');
+  },15000);
  };
- ws.onclose=()=>{ clearInterval(timerInterval); showScreen('entry'); myState={}; };
- ws.onerror=()=>alert('Não foi possível conectar à sala. Tente novamente.');
+ socket.onclose=()=>{
+  if(ws!==socket) return;
+  clearInterval(heartbeatInterval); saveSession();
+  if(session) scheduleReconnect();
+  else {awaitingState=false;connectionStatus('Não foi possível conectar. Tente criar ou entrar na sala novamente.');showScreen('entry');}
+ };
+ socket.onerror=()=>socket.close();
 }
 document.getElementById('btnCreate').onclick=()=>{const n=document.getElementById('inputName').value.trim(); if(n) connect(n,''); else alert('Digite seu nome');};
 document.getElementById('btnJoin').onclick=()=>{const n=document.getElementById('inputName').value.trim(),c=document.getElementById('inputCode').value.trim().toUpperCase(); if(n&&c) connect(n,c); else alert('Digite seu nome e o código da sala');};
@@ -413,6 +481,7 @@ function renderState(d) {
  const selection=input?[input.selectionStart,input.selectionEnd]:null;
  if(input && myState.phase==='answering') draft=input.value;
  myState={...myState,...d}; clearInterval(timerInterval);
+ saveSession();
  renderLobby(d.players||[],d.canStart);
  if(d.phase==='lobby') {showScreen('lobby'); return;}
  showScreen('game');
@@ -424,13 +493,13 @@ function renderLobby(players,canStart) {
  document.getElementById('btnStart').disabled=!canStart;
  document.getElementById('btnStart').textContent=myState.host?'Iniciar partida (3+ jogadores)':'Aguardando o host iniciar';
 }
-function heading(d) {return `<div class="theme-label">Rodada ${d.round} de 5 · Tema da vez</div><div class="theme-title">${esc(d.currentTheme)}</div>`;}
+function heading(d) {return `<div class="round-label">Rodada ${d.round} de 5</div><header class="theme-heading"><div class="theme-label">Tema da rodada</div><h1 class="theme-title">${esc(d.currentTheme)}</h1></header>`;}
 function people(d) {return `<div class="people">Resposta de <strong>${esc(d.discussingPlayerName)}</strong><br>Líder: <strong>${esc(d.judgeName)}</strong> (registra o ranking decidido pelo grupo)</div>`;}
 function badge(t) {return `<div class="tier-badge" role="img" aria-label="Nota ${esc(t)}" style="background:var(--tier-${String(t).toLowerCase()});${t==='B'?'color:#29220a':''}">${esc(t)}</div>`;}
 function board(d) {return TIERS.map(t=>`<div class="tier-row ${t.toLowerCase()}"><div class="tier-label ${t.toLowerCase()}">${t}</div><div>${(d.board||[]).filter(a=>a.placed===t).map(a=>`<div class="answer-card"><strong>${esc(a.playerName)}</strong>${esc(a.text)}</div>`).join('')}</div></div>`).join('');}
 function renderAnswering(d) {
  const key=`${d.code}:${d.round}:${d.revision}`;
- if(key!==draftKey) {draftKey=key; draft='';}
+ if(key!==draftKey) {draftKey=key; draft='';saveSession();}
  document.getElementById('gameContent').innerHTML=`${heading(d)}
  <div class="help">Você recebeu uma letra secreta. Escreva algo do tema que combine com esse nível: S é o mais alto e F é o mais baixo. Depois, o grupo tentará descobrir a posição da sua resposta. Não revele sua letra!</div>
  <div class="board-image"><img hidden src="/static/board.png" alt="Tabuleiro Tier Du" onload="this.hidden=false;this.nextElementSibling.hidden=true" onerror="this.remove()"><div class="board-fallback">${TIERS.map(t=>`<div class="tier-row ${t.toLowerCase()}"><div class="tier-label ${t.toLowerCase()}">${t}</div><div>${LABELS[t]}</div></div>`).join('')}</div><div class="board-theme">Tema da vez: ${esc(d.currentTheme)}</div></div>
@@ -438,9 +507,9 @@ function renderAnswering(d) {
  <div class="people">Autor: <strong>${esc(myState.name)}</strong><br>Líder da sua resposta: <strong>${esc(d.myLeaderName)}</strong> (registra o ranking decidido pelo grupo)</div>
  <div class="timer" id="timer"></div>
  ${d.iAnswered?'<div class="help">Resposta enviada! Aguarde os outros jogadores.</div>':'<textarea id="answerText" aria-label="Sua resposta" placeholder="Escreva sua resposta..." maxlength="100"></textarea><button class="btn btn-primary" id="btnAnswer">Confirmar resposta</button>'}
- <div class="help">${d.host?'Como host, você pode trocar o tema imediatamente.':'Mais da metade dos jogadores precisa votar para trocar o tema.'} A troca reinicia os 80 segundos e limpa as respostas para o novo tema.</div>
+ <div class="help">${d.host?'Como host, você pode trocar o tema imediatamente.':'Mais da metade dos jogadores precisa votar para trocar o tema.'} A troca reinicia o tempo de 1min30s e limpa as respostas para o novo tema.</div>
  <button class="btn btn-secondary" onclick="send('changeTheme')" ${!d.host&&d.iVotedTheme?'disabled':''}>${d.host?'Trocar tema agora':d.iVotedTheme?'Voto registrado':'Votar para trocar tema'}</button><p class="people">${d.themeVotes} de ${d.themeVotesNeeded} votos necessários</p>`;
- if(!d.iAnswered) {const input=document.getElementById('answerText'); input.value=draft; input.oninput=()=>{draft=input.value;}; document.getElementById('btnAnswer').onclick=()=>{const text=input.value.trim(); if(text) send('answer',{text}); else alert('Escreva uma resposta');};}
+ if(!d.iAnswered) {const input=document.getElementById('answerText'); input.value=draft; input.oninput=()=>{draft=input.value;saveSession();}; document.getElementById('btnAnswer').onclick=()=>{const text=input.value.trim(); if(text) send('answer',{text}); else alert('Escreva uma resposta');};}
  startTimer(d.timerEnd);
 }
 function renderDiscussing(d) {
@@ -462,9 +531,27 @@ function renderChanges(d) {
 }
 function resultRows(r) {return r.answers.map(a=>{const diff=Math.abs(TIERS.indexOf(a.original)-TIERS.indexOf(a.placed)),pts=diff===0?3:diff===1?1:-1; return `<div class="review-row"><div><strong>${esc(a.playerName)}</strong><br><span style="color:var(--muted)">${esc(a.text)}</span>${a.leaderName?`<br><small>Líder: ${esc(a.leaderName)} (registra o consenso)</small>`:''}</div><div class="grade">Nota escolhida${badge(a.placed)}</div><div class="grade">Nota original${badge(a.original)}</div><strong>${pts>0?'+':''}${pts}</strong></div>`;}).join('');}
 function renderReview(d) {const r=d.review; document.getElementById('gameContent').innerHTML=`${heading(d)}<div class="score-box"><div>Pontuação do grupo</div><div class="num ${r.score>=0?'positive':'negative'}">${r.score>0?'+':''}${r.score}</div></div>${resultRows(r)}${d.host?`<button class="btn btn-primary" onclick="send('nextRound')">${d.nextRound?'Próximo tema →':'Ver resultado final'}</button>`:'<p class="help">Aguardando o host continuar.</p>'}`;}
-function renderFinal(d) {const total=d.results.reduce((s,r)=>s+r.score,0),best=Math.max(...d.results.map(r=>r.score)); document.getElementById('gameContent').innerHTML=`<div style="text-align:center"><div class="theme-label">RESULTADO FINAL · TIER DU</div><h1 class="timer">${total>0?'+':''}${total}</h1></div><div class="final-score">${d.results.map((r,i)=>`<div class="final-row ${r.score===best?'best':''}"><div><strong>Rodada ${i+1}</strong><br>${esc(r.theme)}</div><strong>${r.score}</strong></div>${resultRows(r)}`).join('')}</div><button class="btn btn-secondary" onclick="location.reload()">Jogar de novo</button>`;}
-function startTimer(end) {clearInterval(timerInterval); const tick=()=>{const el=document.getElementById('timer'); if(el) el.textContent=`${Math.max(0,Math.ceil((end-Date.now())/1000))}s`;}; tick(); timerInterval=setInterval(tick,250);}
+function renderFinal(d) {const total=d.results.reduce((s,r)=>s+r.score,0),best=Math.max(...d.results.map(r=>r.score)); document.getElementById('gameContent').innerHTML=`<div style="text-align:center"><div class="theme-label">RESULTADO FINAL · TIER DU</div><h1 class="timer">${total>0?'+':''}${total}</h1></div><div class="final-score">${d.results.map((r,i)=>`<div class="final-row ${r.score===best?'best':''}"><div><strong>Rodada ${i+1}</strong><br>${esc(r.theme)}</div><strong>${r.score}</strong></div>${resultRows(r)}`).join('')}</div><button class="btn btn-secondary" onclick="clearSession();location.reload()">Jogar de novo</button>`;}
+function startTimer(end) {clearInterval(timerInterval); const tick=()=>{const el=document.getElementById('timer'); const seconds=Math.max(0,Math.ceil((end-Date.now())/1000)); if(el) el.textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;}; tick(); timerInterval=setInterval(tick,250);}
 const code=new URLSearchParams(location.search).get('code'); if(code) document.getElementById('inputCode').value=code;
+function resumeOnReturn() {
+ saveSession();
+ if(!session || document.visibilityState==='hidden') return;
+ clearTimeout(reconnectTimer); reconnectTimer=null;
+ if(ws?.readyState===WebSocket.OPEN && Date.now()-lastMessageAt<=45000) {send('ping');return;}
+ const old=ws; ws=null; old?.close();
+ connect(session.name,session.code,session.token);
+}
+document.addEventListener('visibilitychange',resumeOnReturn);
+window.addEventListener('online',resumeOnReturn);
+window.addEventListener('pageshow',event=>{if(event.persisted) resumeOnReturn();});
+window.addEventListener('pagehide',saveSession);
+session=readSession();
+if(session && (!code || code.toUpperCase()===session.code)) {
+ draftKey=session.draftKey||'';draft=session.draft||'';
+ if(session.snapshot?.phase) {myState=session.snapshot;renderState(myState);document.getElementById('displayCode').textContent=session.code;}
+ connect(session.name,session.code,session.token);
+} else if(session && code) {clearSession();}
 
 </script>
 </body>

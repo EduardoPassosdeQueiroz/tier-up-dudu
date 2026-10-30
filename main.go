@@ -46,6 +46,7 @@ type WSMessage struct {
 type JoinMsg struct {
 	Name string `json:"name"`
 	Code string `json:"code"`
+	Token string `json:"token"`
 }
 
 type AnswerMsg struct {
@@ -142,11 +143,17 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 		if playerID != "" {
 			connsMu.Lock()
-			delete(conns, playerID)
-			delete(connRoom, playerID)
+			// An old socket must not disconnect a newly resumed session.
+			current := conns[playerID] == conn
+			if current {
+				delete(conns, playerID)
+				delete(connRoom, playerID)
+				if room != nil {
+					room.Disconnect(playerID)
+				}
+			}
 			connsMu.Unlock()
-			if room != nil {
- room.Disconnect(playerID)
+			if current && room != nil {
 				broadcastView(room)
 			}
 		}
@@ -162,6 +169,13 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		if err := json.Unmarshal(msgBytes, &msg); err != nil {
 			continue
 		}
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if playerID != "" {
+			connsMu.RLock()
+			current := conns[playerID] == conn
+			connsMu.RUnlock()
+			if !current { return }
+		}
 
 		switch msg.Type {
 		case "join":
@@ -170,12 +184,31 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			json.Unmarshal(msg.Data, &join)
 			join.Name = strings.TrimSpace(join.Name)
 			join.Code = strings.ToUpper(strings.TrimSpace(join.Code))
-			if join.Name == "" || len([]rune(join.Name)) > 20 {
+			if join.Token == "" && (join.Name == "" || len([]rune(join.Name)) > 20) {
 				writeJSON(conn, map[string]string{"error": "nome_invalido"})
 				continue
 			}
 
-			if join.Code == "" {
+			var previous *websocket.Conn
+			if join.Token != "" {
+				room = getRoom(join.Code)
+				if room == nil {
+					writeJSON(conn, map[string]string{"error": "sessao_expirada"})
+					return
+				}
+				connsMu.Lock()
+				playerID, join.Name = room.Resume(join.Token)
+				if playerID != "" {
+					previous = conns[playerID]
+					conns[playerID] = conn
+					connRoom[playerID] = room
+				}
+				connsMu.Unlock()
+				if playerID == "" {
+					writeJSON(conn, map[string]string{"error": "sessao_expirada"})
+					return
+				}
+			} else if join.Code == "" {
 				room = createRoom()
 				playerID = uuid.New().String()
 				room.AddPlayer(playerID, join.Name, true)
@@ -188,20 +221,32 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				playerID = uuid.New().String()
 				if room.AddPlayer(playerID, join.Name, false)==nil { writeJSON(conn,map[string]string{"error":"partida_em_andamento"}); playerID=""; room=nil; continue }
 			}
+			if join.Token == "" {
+				join.Token = uuid.New().String()
+				room.SetSession(playerID, join.Token)
+			}
 
 			connsMu.Lock()
 			conns[playerID] = conn
 			connRoom[playerID] = room
 			connsMu.Unlock()
+			if previous != nil && previous != conn {
+				writeJSON(previous, map[string]string{"type": "sessionReplaced"})
+				previous.Close()
+			}
 
 			writeJSON(conn, map[string]any{
 				"type":  "joined",
 				"code":  room.Code,
 				"host":  room.IsHost(playerID),
 				"phase": room.ViewForPlayer(playerID)["phase"],
+				"token": join.Token,
+				"name": join.Name,
 			})
 			broadcastView(room)
 
+		case "ping":
+			writeJSON(conn, map[string]string{"type": "pong"})
 		case "start":
 			if room == nil {
 				continue

@@ -14,9 +14,11 @@ Acesse `http://localhost:8080`.
 ## Regras e interface
 
 - Rankings: S, A, B, C, E (azul) e F (roxo).
-- Cinco temas por partida, escolhidos entre os 64 temas cadastrados, sem repetição até esgotar a lista.
-- Respostas: 90 segundos (1:30), inclusive após trocar o tema. Poderes: 30 segundos. Resumo dos poderes: 10 segundos ou avanço pelo host.
-- O host troca o tema durante as respostas; os demais precisam de maioria absoluta dos jogadores conectados. A troca limpa as respostas e reinicia o tempo, mantendo as letras.
+- Três temas por partida, escolhidos aleatoriamente entre os temas cadastrados, sem repetição até esgotar a lista.
+- Respostas: 120 segundos (2:00), inclusive após trocar o tema. Poderes: 30 segundos. Resumo dos poderes: 10 segundos ou avanço pelo host.
+- A troca de tema exige maioria absoluta dos jogadores conectados, inclusive quando o voto vem do host. A troca limpa as respostas e reinicia o tempo, mantendo as letras.
+- Cada letra é sorteada independentemente para cada jogador. Todos devem confirmar a tela de instruções antes da partida.
+- Na revisão, é possível curtir respostas de outras pessoas. O resultado final mostra as rodadas, pontos das respostas, curtidas e contribuição individual dos poderes.
 - Cada jogador pode usar um poder por tema. Subidas e descidas se anulam antes de aplicar os limites S/F.
 - O host pode remover jogadores no lobby. Ao desconectar, o participante conectado mais antigo assume.
 
@@ -42,7 +44,7 @@ go test ./...
 go vet ./...
 ```
 
-Os testes em `game/room_test.go` cobrem votação, tempos, cancelamento dos poderes, extremos S/F, troca de host, remoção e o fluxo de cinco rodadas. Não foram executados neste ambiente, que não possui Go.
+Os testes em `game/room_test.go` cobrem votação, tempos, cancelamento dos poderes, extremos S/F, troca de host, remoção e o fluxo de três rodadas.
 
 O teste de interface foi executado com Playwright e Chrome. Para repetir, disponibilize `playwright` no Node e execute:
 
@@ -53,7 +55,7 @@ node tests/reconnect.cjs
 
 Use `CHROME_PATH` para indicar um Chrome local, ou instale o Chromium do Playwright. O teste verifica rascunho e cursor, cores, seis rankings, plaquinhas, poderes, notas e layout móvel.
 
-O teste de reconexão usa um servidor WebSocket simulado no navegador para verificar a repetição automática, o reaproveitamento da credencial, o retorno à sala após recarregar, a restauração do rascunho e a expiração da sessão. Os testes Go de sessão validam a preservação do jogador, o sigilo da credencial, os 90 segundos e a invalidação após remoção.
+O teste de reconexão usa um servidor WebSocket simulado no navegador para verificar a repetição automática, o reaproveitamento da credencial, o retorno à sala após recarregar, a restauração do rascunho e a expiração da sessão. Os testes Go de sessão validam a preservação do jogador, o sigilo da credencial, os 120 segundos e a invalidação após remoção.
 
 ## Deploy no Render
 

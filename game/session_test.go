@@ -71,7 +71,8 @@ func TestKickedSessionCannotResume(t *testing.T) {
 func TestThemeChangeRestartsNinetySeconds(t *testing.T) {
 	r := testRoom(t)
 	r.ChangeTheme("h")
-	if remaining := time.Until(r.TimerEnd); remaining < 89*time.Second || remaining > 90*time.Second {
+	r.ChangeTheme("a")
+	if remaining := time.Until(r.TimerEnd); remaining < 119*time.Second || remaining > 120*time.Second {
 		t.Fatal("theme change must also use 90 seconds", remaining)
 	}
 }

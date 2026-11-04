@@ -248,26 +248,15 @@ var Themes = []string{
 }
 
 func (r *Room) pickTheme() string {
-	used := map[string]bool{}
-	for _, t := range r.UsedThemes {
-		used[t] = true
-	}
-	avail := []string{}
-	for _, t := range Themes {
-		if !used[t] {
-			avail = append(avail, t)
+	// Every theme has the same chance. Only the current theme is excluded so
+	// a successful change always produces a visible change.
+	available := make([]string, 0, len(Themes))
+	for _, theme := range Themes {
+		if theme != r.CurrentTheme {
+			available = append(available, theme)
 		}
 	}
-	if len(avail) == 0 {
-		r.UsedThemes = []string{r.CurrentTheme}
-		for _, t := range Themes {
-			if t != r.CurrentTheme {
-				avail = append(avail, t)
-			}
-		}
-		return avail[rand.Intn(len(avail))]
-	}
-	return avail[rand.Intn(len(avail))]
+	return available[rand.Intn(len(available))]
 }
 
 func (r *Room) StartRound(requesterID string) bool {
@@ -488,7 +477,7 @@ func (r *Room) applyPowersLocked() bool {
 	before := entry.Placed
 	delta := 0
 	for _, p := range r.Players {
-		if p.PowerChoice != 0 {
+		if p.PowerChoice != 0 && before != entry.Original {
 			p.Genius += ScoreDiff(entry.Original, ShiftTier(before, -p.PowerChoice)) - ScoreDiff(entry.Original, before)
 		}
 	}

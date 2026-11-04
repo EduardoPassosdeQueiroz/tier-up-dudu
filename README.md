@@ -14,7 +14,7 @@ Acesse `http://localhost:8080`.
 ## Regras e interface
 
 - Rankings: S, A, B, C, E (azul) e F (roxo).
-- Três temas por partida, escolhidos aleatoriamente entre os temas cadastrados, sem repetição até esgotar a lista.
+- Três temas por partida, escolhidos aleatoriamente entre os temas cadastrados; o tema atual é excluído do próximo sorteio.
 - Respostas: 120 segundos (2:00), inclusive após trocar o tema. Poderes: 30 segundos. Resumo dos poderes: 10 segundos ou avanço pelo host.
 - A troca de tema exige maioria absoluta dos jogadores conectados, inclusive quando o voto vem do host. A troca limpa as respostas e reinicia o tempo, mantendo as letras.
 - Cada letra é sorteada independentemente para cada jogador. Todos devem confirmar a tela de instruções antes da partida.

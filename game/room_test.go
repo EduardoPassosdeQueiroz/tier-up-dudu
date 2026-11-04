@@ -243,3 +243,39 @@ func TestNewRules(t *testing.T) {
 		t.Fatal("unlike failed")
 	}
 }
+
+func TestGeniusDoesNotChangeWhenOriginalAlreadyCorrect(t *testing.T) {
+	r := discussionRoom(t)
+	entry, judge := r.CurrentDiscussion()
+	r.JudgePlace(judge, entry.Original)
+	var actor string
+	for _, id := range r.Order {
+		if id != entry.PlayerID {
+			if actor == "" {
+				actor = id
+				r.SubmitPower(id, 1)
+			} else {
+				r.SubmitPower(id, 0)
+			}
+		}
+	}
+	if r.Players[actor].Genius != 0 {
+		t.Fatal("power on an already correct answer must not change individual score")
+	}
+}
+func TestThemeDrawCanReuseEarlierThemes(t *testing.T) {
+	r := NewRoom("TEST")
+	r.CurrentTheme = Themes[0]
+	r.UsedThemes = append([]string(nil), Themes...)
+	seen := map[string]bool{}
+	for i := 0; i < 500; i++ {
+		theme := r.pickTheme()
+		if theme == r.CurrentTheme {
+			t.Fatal("theme change repeated current theme")
+		}
+		seen[theme] = true
+	}
+	if len(seen) < 2 {
+		t.Fatal("draw did not select among earlier themes")
+	}
+}

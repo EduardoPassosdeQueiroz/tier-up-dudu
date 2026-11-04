@@ -235,8 +235,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				playerID = uuid.New().String()
-				if room.AddPlayer(playerID, join.Name, false) == nil {
-					writeJSON(conn, map[string]string{"error": "partida_em_andamento"})
+				if _, reason := room.AddPlayerChecked(playerID, join.Name, false); reason != "" {
+					writeJSON(conn, map[string]string{"error": reason})
 					playerID = ""
 					room = nil
 					continue

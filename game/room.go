@@ -121,10 +121,20 @@ func NewRoom(code string) *Room {
 }
 
 func (r *Room) AddPlayer(id, name string, host bool) *Player {
+	p, _ := r.AddPlayerChecked(id, name, host)
+	return p
+}
+
+func (r *Room) AddPlayerChecked(id, name string, host bool) (*Player, string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.Phase != PhaseLobby {
-		return nil
+		return nil, "partida_em_andamento"
+	}
+	for _, existing := range r.Players {
+		if strings.EqualFold(strings.TrimSpace(existing.Name), strings.TrimSpace(name)) {
+			return nil, "nome_duplicado"
+		}
 	}
 	p := &Player{
 		ID:        id,
@@ -135,7 +145,7 @@ func (r *Room) AddPlayer(id, name string, host bool) *Player {
 	}
 	r.Players[id] = p
 	r.Order = append(r.Order, id)
-	return p
+	return p, ""
 }
 
 func (r *Room) PlayerCount() int {
@@ -477,7 +487,7 @@ func (r *Room) applyPowersLocked() bool {
 	before := entry.Placed
 	delta := 0
 	for _, p := range r.Players {
-		if p.PowerChoice != 0 && before != entry.Original {
+		if p.PowerChoice != 0 {
 			p.Genius += ScoreDiff(entry.Original, ShiftTier(before, -p.PowerChoice)) - ScoreDiff(entry.Original, before)
 		}
 	}

@@ -247,7 +247,8 @@ func TestNewRules(t *testing.T) {
 func TestGeniusDoesNotChangeWhenOriginalAlreadyCorrect(t *testing.T) {
 	r := discussionRoom(t)
 	entry, judge := r.CurrentDiscussion()
-	r.JudgePlace(judge, entry.Original)
+	entry.Original = TierS
+	r.JudgePlace(judge, TierS)
 	var actor string
 	for _, id := range r.Order {
 		if id != entry.PlayerID {
@@ -277,5 +278,38 @@ func TestThemeDrawCanReuseEarlierThemes(t *testing.T) {
 	}
 	if len(seen) < 2 {
 		t.Fatal("draw did not select among earlier themes")
+	}
+}
+
+func TestDuplicatePlayerNames(t *testing.T) {
+	r := NewRoom("TEST")
+	r.AddPlayer("a", "Enzo", true)
+	if _, reason := r.AddPlayerChecked("b", " enZO ", false); reason != "nome_duplicado" {
+		t.Fatalf("duplicate name accepted: %q", reason)
+	}
+	r.Disconnect("a")
+	if _, reason := r.AddPlayerChecked("c", "ENZO", false); reason != "nome_duplicado" {
+		t.Fatal("disconnected seat must retain its name")
+	}
+}
+
+func TestGeniusPenalizesMovingAwayFromCorrectTier(t *testing.T) {
+	r := discussionRoom(t)
+	entry, judge := r.CurrentDiscussion()
+	entry.Original = TierB
+	r.JudgePlace(judge, TierB)
+	actor := ""
+	for _, id := range r.Order {
+		if id != entry.PlayerID {
+			if actor == "" {
+				actor = id
+				r.SubmitPower(id, 1)
+			} else {
+				r.SubmitPower(id, 0)
+			}
+		}
+	}
+	if got := r.Players[actor].Genius; got != -2 {
+		t.Fatalf("got %d, want -2", got)
 	}
 }

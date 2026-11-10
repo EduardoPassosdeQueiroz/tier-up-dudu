@@ -11,6 +11,8 @@ go run .
 
 Acesse `http://localhost:8080`.
 
+> `go mod tidy` é usado apenas para o desenvolvimento local. A pipeline de CI não executa `go mod tidy`, para não alterar `go.mod` e `go.sum` automaticamente.
+
 ## Regras e interface
 
 - Rankings: S, A, B, C, E (azul) e F (roxo).
@@ -36,15 +38,18 @@ A tela está preparada para carregar `static/board.png`, com o tema da vez exibi
 
 ## Verificação
 
-Com Go instalado:
+Com Go instalado, rode na raiz do projeto:
 
 ```bash
-gofmt -w main.go game/room.go game/room_test.go game/session.go game/session_test.go
 go test ./...
 go vet ./...
 ```
 
+Para formatar o código localmente, use `gofmt -w` nos arquivos alterados. Esse comando modifica os arquivos, por isso é usado apenas no desenvolvimento local e não faz parte da CI.
+
 Os testes em `game/room_test.go` cobrem votação, tempos, cancelamento dos poderes, extremos S/F, troca de host, remoção e o fluxo de três rodadas.
+
+### Testes de navegador
 
 O teste de interface foi executado com Playwright e Chrome. Para repetir, disponibilize `playwright` no Node e execute:
 
@@ -57,12 +62,62 @@ Use `CHROME_PATH` para indicar um Chrome local, ou instale o Chromium do Playwri
 
 O teste de reconexão usa um servidor WebSocket simulado no navegador para verificar a repetição automática, o reaproveitamento da credencial, o retorno à sala após recarregar, a restauração do rascunho e a expiração da sessão. Os testes Go de sessão validam a preservação do jogador, o sigilo da credencial, os 120 segundos e a invalidação após remoção.
 
+> Os testes de navegador **não são executados pela pipeline de CI**, que roda apenas os testes Go.
+
+## Integração Contínua e Entrega Contínua (CI/CD)
+
+Este projeto usa GitHub Actions para testar o código automaticamente e, depois, implantar a versão aprovada no Render.
+
+### CI (Integração Contínua)
+
+Arquivo: `.github/workflows/ci.yml`
+
+**Quando roda:** em todo `push` para a branch `main` e em todo Pull Request direcionado à `main`.
+
+**O que faz, nesta ordem:**
+1. Baixa o código do repositório.
+2. Configura o Go 1.22.
+3. Verifica as dependências com `go mod download` e `go mod verify`.
+4. Executa os testes automatizados com `go test ./...`.
+5. Executa a análise estática com `go vet ./...`.
+6. Compila o projeto com `go build` para confirmar que não há erros de build.
+
+**Por que existe:** garante que cada alteração compila e passa nos testes antes de ir para a `main`. Se qualquer etapa falhar, a CI fica vermelha e a CD não é executada.
+
+### CD (Entrega Contínua)
+
+Arquivo: `.github/workflows/cd.yml`
+
+**Quando roda:** somente após a CI ser concluída com sucesso em um `push` para a `main`.
+
+**Não roda em:** Pull Requests, nem quando a CI falha.
+
+**O que faz:** envia uma requisição ao Deploy Hook do Render, que inicia a implantação da versão aprovada.
+
+### Configuração do segredo
+
+A URL do Deploy Hook é privada e não fica no repositório.
+
+1. No Render, abra o serviço `tier-up-dudu` → **Settings** → seção **Deploy Hook** e copie a URL.
+2. No GitHub, abra **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
+3. Em **Name**, digite `RENDER_DEPLOY_HOOK_URL`. Em **Secret**, cole a URL e salve.
+
+### Como interpretar os resultados
+
+- Acesse a aba **Actions** do repositório para ver cada execução.
+- **CI verde:** dependências, testes, análise estática e build passaram.
+- **CI vermelha:** abra o job e veja a etapa que falhou. A CD não é executada nesse caso.
+- **CD ignorada (skipped):** a CI não terminou com sucesso, ou o evento foi um Pull Request.
+- **CD verde:** o Deploy Hook foi acionado. Confirme o andamento em **Events** do serviço no Render.
+- Para verificar o serviço no ar, acesse `/healthz`, que deve responder `ok`.
+
 ## Deploy no Render
 
-1. Crie um novo Web Service no Render conectando este repositório.
-2. Configure:
-   - **Build Command:** `go build -o tierup .`
-   - **Start Command:** `./tierup`
-3. Health Check Path: `/healthz`
+O serviço `tier-up-dudu` no Render está configurado com:
 
-O Render define automaticamente a variável `PORT`.
+- **Build Command:** `go build -o app .`
+- **Start Command:** `./app`
+- **Health Check Path:** `/healthz`
+- **Auto-Deploy:** desligado (a implantação é feita pela CD do GitHub Actions)
+
+O arquivo `render.yaml` documenta essa configuração, mas não cria um Blueprint. O Render define automaticamente a variável `PORT`.

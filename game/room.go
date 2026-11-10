@@ -201,7 +201,7 @@ var Themes = []string{
 	"Insetos",
 	"Vilões",
 	"Ele(a) é um 10 mas...",
-	"Tóxico em uma relação (S) ou normal",
+	"Tóxico em uma relação (S) ou normal (F)",
 	"Matérias escolares",
 	"Personagens da Marvel/DC",
 	"Youtuberes",
@@ -236,7 +236,6 @@ var Themes = []string{
 	"Você ganharia desse cara numa luta?",
 	"Bandas e Cantores",
 	"Super-poderes",
-	"Dinossauros",
 	"Invenções que não deveriam existir",
 	"Invenções que mudaram o mundo",
 	"Órgãos do corpo humano",
@@ -255,6 +254,11 @@ var Themes = []string{
 	"Coisas que seriam úteis em um apocalipse zumbi",
 	"Coisas que podem causar o fim da humanidade",
 	"Personagens de animação mais atraentes",
+	"Café da manhã",
+	"Sabores de sorvete",
+	"Trends da história do tiktok",
+	"Atitudes atraentes",
+	"Sub-celebridades",
 }
 
 func (r *Room) pickTheme() string {

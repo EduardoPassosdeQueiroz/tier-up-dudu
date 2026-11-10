@@ -60,7 +60,7 @@ func TestThemeVotesAndTiming(t *testing.T) {
 	if r.CurrentTheme != previous {
 		t.Fatal("changed outside answering")
 	}
-	if len(Themes) != 67 {
+	if len(Themes) != 71 {
 		t.Fatal(len(Themes))
 	}
 }

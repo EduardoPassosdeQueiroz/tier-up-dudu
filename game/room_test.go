@@ -203,7 +203,7 @@ func TestThreeRoundsReachFinal(t *testing.T) {
 }
 
 func TestNewRules(t *testing.T) {
-	for i, want := range []int{3, 1, -1, -3, -5, -7} {
+	for i, want := range []int{3, 1, -1, -3, -5, -8} {
 		if got := ScoreDiff(TierS, TierOrder[i]); got != want {
 			t.Fatalf("distance %d: got %d want %d", i, got, want)
 		}

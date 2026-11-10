@@ -66,3 +66,5 @@ O teste de reconexão usa um servidor WebSocket simulado no navegador para verif
 3. Health Check Path: `/healthz`
 
 O Render define automaticamente a variável `PORT`.
+
+<!-- Teste: PR sem deploy -->

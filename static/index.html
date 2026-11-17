@@ -151,6 +151,36 @@
     margin-bottom: 24px;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
   }
+  .secret-tier {
+    width: 112px;
+    height: 112px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 12px auto 16px;
+    border-radius: 18px;
+    font-size: 3rem;
+    font-weight: 900;
+    color: white;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    background: linear-gradient(
+        135deg,
+        var(--tier-s),
+        var(--tier-a),
+        var(--tier-b),
+        var(--tier-c),
+        var(--tier-e),
+        var(--tier-f)
+    );
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+}
+
+.secret-tier.revealed {
+    background: var(--secret-color);
+}
   .timer {
     font-size: 4rem;
     font-weight: 900;
@@ -387,7 +417,52 @@ input:focus, textarea:focus, button:focus-visible { outline:3px solid #ffd381; o
 .final-row { border-radius:16px; margin:9px 0; padding:15px 18px; }
 #gameContent h2 { margin:32px 0 14px; font-size:1.3rem; }
 .power-btn, .tier-btn { border-radius:14px; transition:transform .18s,filter .18s; }
-@media(max-width:600px) { .screen { padding:22px 14px 48px; } .review-row { grid-template-columns:1fr auto auto; } .review-row > div:first-child { grid-column:1 / -1; } .tier-options { gap:6px; } .tier-btn { min-width:0; } .theme-heading { padding:20px; } }
+.theme-options {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin: 24px 0;
+}
+
+.theme-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid #ffffff25;
+    background: var(--card);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.theme-option:not(:disabled):hover {
+    border-color: var(--tier-a);
+    transform: translateY(-2px);
+}
+
+.theme-option:disabled {
+    opacity: .7;
+    cursor: default;
+}
+
+.theme-option strong {
+    color: var(--tier-a);
+    white-space: nowrap;
+}
+
+@media(max-width:600px) {
+    .theme-option {
+        padding: 16px;
+        font-size: 14px;
+    }
+}
+@media(max-width:600px) { .screen { padding:22px 14px 48px; } .review-row { grid-template-columns:1fr auto auto; } .review-row > div:first-child { grid-column:1 / -1; } .tier-options { gap:6px; } .tier-btn { min-width:0; } .theme-heading { padding:20px; } #lobby > .kick { margin-top: 32px; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; } }
 
 
@@ -559,7 +634,7 @@ function renderState(d) {
  if(d.phase==='answering' && myState._themeRevision!==undefined && myState._themeRound===d.round && myState._themeRevision!==d.revision) alert('O tema mudou!');
  myState._themeRevision=d.revision; myState._themeRound=d.round;
  showScreen('game');
- ({instructions:renderInstructions,answering:renderAnswering,discussing:renderDiscussing,power:renderPower,changes:renderChanges,review:renderReview,final:renderFinal}[d.phase]||(()=>{}))(d);
+({instructions:renderInstructions,themeVote:renderThemeVote,answering:renderAnswering,discussing:renderDiscussing,power:renderPower,changes:renderChanges,review:renderReview,final:renderFinal}[d.phase]||(()=>{}))(d);
  if(!['instructions','review'].includes(d.phase)) document.getElementById('gameContent').insertAdjacentHTML('afterbegin',`<button class="kick" onclick="leaveGame()">Sair da partida</button>`);
  if(focused) {const next=document.getElementById('answerText'); if(next) {next.focus(); next.setSelectionRange(...selection);} }
 }
@@ -572,18 +647,63 @@ function heading(d) {return `<div class="round-label">Rodada ${d.round} de 3</di
 function people(d) {return `<div class="people">Resposta de <strong>${esc(d.discussingPlayerName)}</strong><br>Líder: <strong>${esc(d.judgeName)}</strong></div>`;}
 function badge(t) {return `<div class="tier-badge" role="img" aria-label="Nota ${esc(t)}" style="background:var(--tier-${String(t).toLowerCase()});${t==='B'?'color:#29220a':''}">${esc(t)}</div>`;}
 function board(d) {return TIERS.map(t=>`<div class="tier-row ${t.toLowerCase()}"><div class="tier-label ${t.toLowerCase()}">${t}</div><div>${(d.board||[]).filter(a=>a.placed===t).map(a=>`<div class="answer-card"><strong>${esc(a.playerName)}</strong>${esc(a.text)}</div>`).join('')}</div></div>`).join('');}
+function renderThemeVote(d) {
+    const counts = d.themeVoteCounts || {};
+    const voted = !!d.myThemeVote;
+
+    document.getElementById('gameContent').innerHTML = `
+        <div class="round-label">Rodada ${d.round} de 3</div>
+
+        <header class="theme-heading">
+            <div class="theme-label">ESCOLHA DO TEMA</div>
+            <h1 class="theme-title">
+                Qual será o tema desta rodada?
+            </h1>
+        </header>
+
+        <div class="help">
+            Todos devem escolher um dos cinco temas.
+            O mais votado será utilizado nesta rodada.
+            Em caso de empate, um dos empatados será sorteado.
+        </div>
+
+        <div class="theme-options">
+            ${(d.themeOptions || []).map((theme, i) => `
+                <button
+                    class="theme-option"
+                    ${voted ? 'disabled' : ''}
+                    onclick="send('voteTheme',{theme:${JSON.stringify(theme)}})"
+                >
+                    <span>${esc(theme)}</span>
+                    <strong>${counts[theme] || 0} votos</strong>
+                    ${d.myThemeVote === theme
+                        ? '<span>Seu voto</span>'
+                        : ''}
+                </button>
+            `).join('')}
+        </div>
+
+        <div class="discussing-notice">
+            ${voted
+                ? 'Seu voto foi registrado. Aguardando os outros jogadores.'
+                : 'Escolha um dos cinco temas para continuar.'}
+        </div>
+
+        <p class="people">
+            ${d.themeVotes} de ${d.themeVotesNeeded} jogadores votaram.
+        </p>
+    `;
+}
 function renderAnswering(d) {
  const key=`${d.code}:${d.round}:${d.revision}`;
  if(key!==draftKey) {draftKey=key; draft='';saveSession();}
  document.getElementById('gameContent').innerHTML=`${heading(d)}
 
  <div class="board-image"><img hidden src="/static/board.png" alt="Tabuleiro Tier Du" onload="this.hidden=false;this.nextElementSibling.hidden=true" onerror="this.remove()"><div class="board-fallback">${TIERS.map(t=>`<div class="tier-row ${t.toLowerCase()}"><div class="tier-label ${t.toLowerCase()}">${t}</div><div>${LABELS[t]} (${NOTES[t]})</div></div>`).join('')}</div><div class="board-theme">Tema da vez: ${esc(d.currentTheme)}</div></div>
- <div style="text-align:center">Sua letra secreta:<br><div class="my-tier" style="background:var(--tier-${d.myTier.toLowerCase()})">${d.myTier}</div><div>${LABELS[d.myTier]} (${NOTES[d.myTier]})</div></div>
+ <div style="text-align:center"> Sua letra secreta: <div class="secret-tier" style="--secret-color:var(--tier-${d.myTier.toLowerCase()})" onpointerdown=" this.setPointerCapture(event.pointerId); this.classList.add('revealed'); this.textContent='${d.myTier}'; " onpointerup=" this.classList.remove('revealed'); this.textContent='?'; " onpointercancel=" this.classList.remove('revealed'); this.textContent='?'; " onlostpointercapture=" this.classList.remove('revealed'); this.textContent='?'; " oncontextmenu="return false" role="button" tabindex="0" aria-label="Pressione e segure para revelar sua nota secreta" >?</div> <div>Pressione e segure para revelar sua nota secreta.</div> </div>
  <div class="people">Autor: <strong>${esc(myState.name)}</strong><br>Líder da sua resposta: <strong>${esc(d.myLeaderName)}</strong></div>
  <div class="timer" id="timer"></div>
- ${d.iAnswered?`<div class="help">Resposta confirmada: ${esc(d.myAnswer)} <button class="kick" aria-label="Editar resposta" onclick="send('editAnswer')">✏️</button></div>`:'<textarea id="answerText" aria-label="Sua resposta" placeholder="Escreva sua resposta..." maxlength="100"></textarea><button class="btn btn-primary" id="btnAnswer">Confirmar resposta</button>'}
-
- <button class="btn btn-secondary" onclick="send('changeTheme')" ${d.iVotedTheme?'disabled':''}>${d.iVotedTheme?'Voto registrado':'Votar para trocar tema'}</button><p class="people">${d.themeVotes} de ${d.themeVotesNeeded} votos necessários</p>`;
+ ${d.iAnswered?`<div class="help">Resposta confirmada: ${esc(d.myAnswer)} <button class="kick" aria-label="Editar resposta" onclick="send('editAnswer')">✏️</button></div>`:'<textarea id="answerText" aria-label="Sua resposta" placeholder="Escreva sua resposta..." maxlength="100"></textarea><button class="btn btn-primary" id="btnAnswer">Confirmar resposta</button>'}`;
  if(d.iAnswered) draft=d.myAnswer||draft;
  if(!d.iAnswered) {const input=document.getElementById('answerText'); input.value=draft; input.oninput=()=>{draft=input.value;saveSession();}; document.getElementById('btnAnswer').onclick=()=>{const text=input.value.trim(); if(text) send('answer',{text}); else alert('Escreva uma resposta');};}
  startTimer(d.timerEnd);
@@ -593,21 +713,32 @@ function renderDiscussing(d) {
  document.getElementById('gameContent').innerHTML=`${heading(d)}${people(d)}<div class="answer-card">${esc(d.discussingText)}</div>${board(d)}${d.iAmJudge?`<div class="tier-options">${TIERS.map(t=>`<button class="tier-btn ${t.toLowerCase()}" onclick="send('judge',{tier:'${t}'})">${t}</button>`).join('')}</div>`:'<div class="discussing-notice">Aguardando o líder registrar o consenso.</div>'}`;
 }
 function renderPower(d) {
- const disabled=d.myUsedPower||d.iAmTarget||d.myPowerChosen;
- document.getElementById('gameContent').innerHTML=`${heading(d)}${people(d)}<div class="answer-card">${esc(d.discussingText)}</div><div class="grade">Nota escolhida${badge(d.placed)}</div>
+  const disabled = d.myUsedPower || d.iAmTarget || d.myPowerChosen;
 
- <div class="discussing-notice">${d.iAmTarget?'Você é o autor e não pode usar poder nesta resposta.':d.myPowerChosen?'Decisão registrada. Aguarde os demais.':d.myUsedPower?'Você já usou seu poder neste tema. Confirme para continuar.':'Escolha seu poder ou passe a vez.'}</div>
- <div class="timer" id="timer"></div><div class="power-options"><button class="power-btn up" ${disabled?'disabled':''} onclick="send('power',{choice:1})">↑ Subir 1 tier</button><button class="power-btn" ${d.iAmTarget||d.myPowerChosen?'disabled':''} onclick="send('power',{choice:0})">Não fazer nada</button><button class="power-btn down" ${disabled?'disabled':''} onclick="send('power',{choice:-1})">↓ Descer 1 tier</button></div>${board(d)}`;
- startTimer(d.timerEnd);
+  document.getElementById('gameContent').innerHTML = `${heading(d)}${people(d)}<div class="answer-card">${esc(d.discussingText)}</div><div class="grade">Nota escolhida${badge(d.placed)}</div>
+
+  <div class="discussing-notice">${d.iAmTarget ? 'Você é o autor e não pode usar poder nesta resposta.' : d.myPowerChosen ? 'Decisão registrada. Aguarde os demais.' : d.myUsedPower ? 'Esperando resposta dos outros jogadores' : 'Escolha seu poder ou passe a vez.'}</div>
+  <div class="timer" id="timer"></div>
+  ${d.myUsedPower
+    ? `<p class="power-waiting">Poder já utilizado. Aguardando os demais jogadores…</p>`
+    : `<div class="power-options">
+        <button class="power-btn up" ${disabled ? 'disabled' : ''} onclick="send('power',{choice:1})">↑ Subir 1 tier</button>
+        <button class="power-btn" ${d.iAmTarget || d.myPowerChosen ? 'disabled' : ''} onclick="send('power',{choice:0})">Não fazer nada</button>
+        <button class="power-btn down" ${disabled ? 'disabled' : ''} onclick="send('power',{choice:-1})">↓ Descer 1 tier</button>
+      </div>`
+  }
+  ${board(d)}`;
+
+  startTimer(d.timerEnd);
 }
 function renderChanges(d) {
  const change=d.changes[0];
  document.getElementById('gameContent').innerHTML=`${heading(d)}<h2>O que os poderes mudaram</h2>${people(d)}<div class="answer-card">${esc(d.discussingText)}</div><div class="help">${d.changes.map(c=>`<p><strong>${esc(c.playerName)}</strong>: ${c.choice===1?'↑ pediu para subir 1 tier':'↓ pediu para descer 1 tier'}</p>`).join('')}</div><div class="review-row"><div>Resultado dos poderes${change.before===change.after?'<p>A nota permaneceu igual: poderes opostos se anulam e os limites são S e F.</p>':''}</div><div class="grade">Antes${badge(change.before)}</div><div class="grade">Depois${badge(change.after)}</div></div><div class="timer" id="timer"></div>${d.host?'<button class="btn btn-primary" onclick="send(\'continue\')">Continuar</button>':'<p>A próxima etapa começa automaticamente.</p>'}`;
  startTimer(d.timerEnd);
 }
-function resultRows(r,round,showLikes=false) {return r.answers.map(a=>{const diff=Math.abs(TIERS.indexOf(a.original)-TIERS.indexOf(a.placed)),pts=diff===0?3:diff===1?1:3-2*diff; return `<div class="review-row"><div><strong>${esc(a.playerName)}</strong><br><span style="color:var(--muted)">${esc(a.text)}</span>${a.leaderName?`<br><small>Líder: ${esc(a.leaderName)}</small>`:''}</div><div class="grade">Nota escolhida${badge(a.placed)}</div><div class="grade">Nota original${badge(a.original)}</div><button class="kick" ${a.playerId===myState.myID?'disabled':''} onclick="send('like',{round:${round},owner:'${a.playerId}'})">${a.likes?.[myState.myID]?'❤️':'🤍'}${showLikes?` ${Object.keys(a.likes||{}).length}`:''}</button><strong>${pts>0?'+':''}${pts}</strong></div>`;}).join('');}
+function resultRows(r,round,showLikes=false) {return r.answers.map(a=>{const diff=Math.abs(TIERS.indexOf(a.original)-TIERS.indexOf(a.placed)),pts=diff===0?3:diff===1?1:3-2*diff; return `<div class="review-row"><div><strong>${esc(a.playerName)}</strong><br><span style="color:var(--muted)">${esc(a.text)}</span>${a.leaderName?`<br><small>Líder: ${esc(a.leaderName)}</small>`:''}</div><div class="grade">Nota original${badge(a.original)}</div><div class="grade">Nota escolhida${badge(a.placed)}</div><button class="kick" ${a.playerId===myState.myID?'disabled':''} onclick="send('like',{round:${round},owner:'${a.playerId}'})">${a.likes?.[myState.myID]?'❤️':'🤍'}${showLikes?` ${Object.keys(a.likes||{}).length}`:''}</button><strong>${pts>0?'+':''}${pts}</strong></div>`;}).join('');}
 function renderReview(d) {const r=d.review; document.getElementById('gameContent').innerHTML=`${heading(d)}<div class="score-box"><div>Pontuação do grupo</div><div class="num ${r.score>=0?'positive':'negative'}">${r.score>0?'+':''}${r.score}</div></div>${resultRows(r,d.round-1)}${d.host?`<button class="btn btn-primary" onclick="send('nextRound')">${d.nextRound?'Próximo tema →':'Ver resultado final'}</button>`:'<p class="help">Aguardando o host continuar.</p>'}`;}
-function renderInstructions(d) { document.getElementById('gameContent').innerHTML=`<h1>Como jogar 🎮</h1><div class="help"><p>Todos formam um time e tentam acertar a letra secreta de cada resposta.</p><p>Cada jogador recebe uma letra e escreve uma resposta que combine com ela. Quando sua resposta estiver em discussão, fique em silêncio e não demonstre sua letra.</p><p>Os demais discutem em qual posição a resposta deve ficar. O líder registra o consenso; ele muda a cada resposta.</p><p>Depois da discussão, você pode subir ou descer uma posição quando achar que o grupo errou e quiser corrigir a decisão. O poder pode ser usado uma vez por tema, e não na própria resposta. Poderes opostos se anulam.</p><p>Exemplo: se a letra secreta e a escolha do grupo são S, subir não altera a letra nem sua pontuação em Gênios das alterações.</p><p>Curta as respostas que achou muito boas, engraçadas ou com as quais concorda. Você não pode curtir sua própria resposta.</p></div><p>${d.readyCount} de ${d.connectedCount} prontos</p><button class="btn btn-primary" ${d.ready?'disabled':''} onclick="send('ready')">${d.ready?'Aguardando os jogadores':'Prosseguir com o jogo'}</button>`; }
+function renderInstructions(d) { document.getElementById('gameContent').innerHTML=`<h1>Como jogar 🎮</h1><div class="help"><p>Todos formam um time e tentam acertar a letra secreta de cada resposta.</p><p>Cada jogador recebe uma letra e escreve uma resposta que combine com ela. Quando sua resposta estiver em discussão, fique em silêncio e não demonstre sua letra.</p><p>Os demais discutem em qual posição a resposta deve ficar. O líder registra o consenso; ele muda a cada resposta.</p><p>Depois da discussão, você pode subir ou descer uma posição quando achar que o grupo errou e quiser corrigir a decisão. O poder pode ser usado uma vez por tema, e não na própria resposta. Poderes opostos se anulam.</p><p>Exemplo: se a letra secreta e a escolha do grupo são S, subir não altera a letra nem sua pontuação em Gênios das alterações.</p><p>Curta as respostas que achou muito boas, engraçadas ou com as quais concorda. Você não pode curtir sua própria resposta.<p> <strong>Escolha do tema:</strong> antes de cada rodada, serão apresentados cinco temas diferentes. Todos os jogadores deverão votar em um deles. O tema mais votado será escolhido para a rodada. Cada jogador poderá votar apenas uma vez. Em caso de empate, um dos temas empatados será sorteado. Os temas apresentados não se repetirão durante a partida. </p></p></div><p>${d.readyCount} de ${d.connectedCount} prontos</p><button class="btn btn-primary" ${d.ready?'disabled':''} onclick="send('ready')">${d.ready?'Aguardando os jogadores':'Prosseguir com o jogo'}</button>`; }
 function leaveGame() {send('leave'); clearSession(); ws=null; location.reload();}
 function renderFinal(d) {
  const total=d.results.reduce((s,r)=>s+r.score,0);
@@ -624,7 +755,7 @@ function renderFinal(d) {
  <section class="ranking-section"><h2>🌟 Quem dá as melhores respostas</h2>${podium(best,p=>`<strong>${esc(p.name)}</strong><small>${p.points} pontos</small>`)}</section>
  <section class="ranking-section"><h2>❤️ As 5 respostas mais curtidas</h2><div class="liked-ranking">${liked.map((a,i)=>`<div class="liked-card rank-${i+1}"><span class="rank-number">${i+1}</span><div class="rank-label"><strong>${esc(a.text)}</strong><small>${esc(a.playerName)} · ${Object.keys(a.likes||{}).length} curtidas</small></div></div>`).join('')}</div></section>
  <section class="ranking-section"><h2>🧠 Gênios das alterações</h2><p class="help">Se o grupo escolheu S e a letra secreta também era S, subir não muda a letra nem a pontuação neste gráfico.</p>${podium(genius,p=>`<strong>${esc(p.name)}</strong><small>${p.genius>0?'+':''}${p.genius} pontos</small>`)}</section>
- ${d.results.map((r,i)=>`<section class="ranking-section"><h2>${esc(r.theme)}</h2>${resultRows(r,i,true)}</section>`).join('')}<button class="btn btn-secondary" onclick="leaveGame()">Jogar de novo</button>`;
+ ${d.results.map((r,i)=>`<section class="ranking-section"><h2>${esc(r.theme)}</h2>${resultRows(r,i,true)}</section>`).join('')}${d.host ? `<button class="btn btn-primary" onclick="send('returnLobby')"> Voltar para a sala </button>` : `<div class="discussing-notice"> Aguardando o host voltar para a sala. </div>` }`;
 }
 function startTimer(end) {clearInterval(timerInterval); const tick=()=>{const el=document.getElementById('timer'); const seconds=Math.max(0,Math.ceil((end-Date.now())/1000)); if(el) el.textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;}; tick(); timerInterval=setInterval(tick,250);}
 const code=new URLSearchParams(location.search).get('code'); if(code) document.getElementById('inputCode').value=code;

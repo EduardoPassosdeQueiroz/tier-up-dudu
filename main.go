@@ -58,7 +58,11 @@ type JudgeMsg struct {
 }
 
 type PowerMsg struct {
-	Choice int `json:"choice"`
+    Choice int `json:"choice"`
+}
+
+type ThemeVoteMsg struct {
+    Theme string `json:"theme"`
 }
 
 func generateCode() string {
@@ -336,10 +340,15 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			broadcastView(room)
 
 		case "continue":
-			if room != nil {
-				room.Continue(playerID)
-				broadcastView(room)
-			}
+    		if room != nil {
+        		room.Continue(playerID)
+        		broadcastView(room)
+    		}
+
+		case "returnLobby":
+    		if room != nil && room.ReturnToLobby(playerID) {
+        		broadcastView(room)
+    		}
 		case "kick":
 			var target struct {
 				PlayerID string `json:"playerID"`
@@ -355,9 +364,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 				broadcastView(room)
 			}
-		case "changeTheme":
+		case "voteTheme":
 			if room != nil {
-				room.ChangeTheme(playerID)
+				var vote ThemeVoteMsg
+
+				if err := json.Unmarshal(msg.Data, &vote); err != nil {
+            		continue
+        		}
+				room.SubmitThemeVote(playerID, vote.Theme)
 				broadcastView(room)
 			}
 		}

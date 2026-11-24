@@ -50,10 +50,10 @@ const fs=require('node:fs');
   await page.waitForFunction(()=>window.sent.some(m=>m.type==='join'));
   assert.equal(await page.evaluate(()=>window.sent[0].data.token),'test-session-token');
   await page.evaluate(()=>{
-   window.mockState={...window.mockState,phase:'answering',round:1,revision:1,currentTheme:'Sabores de pizza',myTier:'E',myLeaderName:'Ana',themeVotes:0,themeVotesNeeded:2,timerEnd:Date.now()+90000};
+   window.mockState={...window.mockState,phase:'answering',round:1,revision:1,currentTheme:'Sabores de pizza',myTier:'E',myLeaderName:'Ana',themeVotes:0,themeVotesNeeded:2,timerEnd:Date.now()+120000};
    window.sockets.at(-1).emit(window.mockState);
   });
-  assert.match(await page.locator('#timer').innerText(),/^1:(30|29)$/);
+  assert.match(await page.locator('#timer').innerText(),/^(2:00|1:59)$/);
   assert.equal(await page.locator('.theme-heading .theme-label').innerText(),'TEMA DA RODADA');
   assert.equal(await page.locator('.theme-heading h1').innerText(),'Sabores de pizza');
   assert.equal(await page.locator('.board-theme').innerText(),'Tema da vez: Sabores de pizza');
@@ -61,7 +61,7 @@ const fs=require('node:fs');
   await page.reload();
   // Mock the same live round after reload; the saved session must recover its draft.
   await page.evaluate(()=>{
-   window.mockState={...window.mockState,phase:'answering',round:1,revision:1,currentTheme:'Sabores de pizza',myTier:'E',myLeaderName:'Ana',themeVotes:0,themeVotesNeeded:2,timerEnd:Date.now()+90000};
+   window.mockState={...window.mockState,phase:'answering',round:1,revision:1,currentTheme:'Sabores de pizza',myTier:'E',myLeaderName:'Ana',themeVotes:0,themeVotesNeeded:2,timerEnd:Date.now()+120000};
    if(window.sockets.at(-1).readyState===1)window.sockets.at(-1).emit(window.mockState);
   });
   await page.waitForSelector('#answerText');
@@ -84,6 +84,6 @@ const fs=require('node:fs');
   assert.equal(await page.evaluate(()=>localStorage.getItem('tier-du-session-v1')),null);
   assert.equal(await page.locator('#entry').evaluate(el=>el.classList.contains('active')),true);
   assert.deepEqual(errors,[]);
-  console.log('PASS: saved lobby, automatic retry, same token, reload, 1:30 timer, both theme labels, draft recovery, background return, theme reset, tab handover, expired session, mobile layout.');
+  console.log('PASS: saved lobby, automatic retry, same token, reload, 2:00 timer, both theme labels, draft recovery, background return, theme reset, tab handover, expired session, mobile layout.');
  } finally {await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(e=>{console.error(e);process.exit(1);});

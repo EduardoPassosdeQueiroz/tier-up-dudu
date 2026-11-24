@@ -247,6 +247,23 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		case "ping":
 			writeJSON(conn, map[string]string{"type": "pong"})
+		case "ready":
+			if room != nil { room.ReadyToPlay(playerID); broadcastView(room) }
+		case "editAnswer":
+			if room != nil { room.EditAnswer(playerID); broadcastView(room) }
+		case "like":
+			var like struct {
+				Round int `json:"round"`
+				PlayerID string `json:"playerID"`
+			}
+			if json.Unmarshal(msg.Data, &like) == nil && room != nil {
+				room.ToggleLike(playerID, like.Round, like.PlayerID)
+				broadcastView(room)
+			}
+		case "leave":
+			if room != nil { room.Leave(playerID); broadcastView(room) }
+			writeJSON(conn, map[string]string{"type": "left"})
+			return
 		case "start":
 			if room == nil {
 				continue

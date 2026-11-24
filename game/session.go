@@ -22,10 +22,11 @@ func (r *Room) Resume(token string) (string, string) {
 	}
 	for _, id := range r.Order {
 		p := r.Players[id]
-		if p.SessionToken == "" || subtle.ConstantTimeCompare([]byte(p.SessionToken), []byte(token)) != 1 {
+		if p.Left || p.SessionToken == "" || subtle.ConstantTimeCompare([]byte(p.SessionToken), []byte(token)) != 1 {
 			continue
 		}
 		p.Connected = true
+		if r.Phase == PhaseInstructions { r.IntroPlayers[p.ID] = true }
 		hasHost := false
 		for _, other := range r.Players {
 			if other.Host && other.Connected {

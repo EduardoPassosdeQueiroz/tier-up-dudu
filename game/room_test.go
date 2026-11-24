@@ -10,7 +10,7 @@ func testRoom(t *testing.T) *Room {
  t.Helper()
  r:=NewRoom("TEST")
  r.AddPlayer("h","Host",true); r.AddPlayer("a","Ana",false); r.AddPlayer("b","Bia",false)
- if !r.StartRound("h") {t.Fatal("start failed")}; return r
+ if !r.StartRound("h") {t.Fatal("start failed")}; for _,id:=range r.Order {r.ReadyToPlay(id)}; return r
 }
 func discussionRoom(t *testing.T) *Room {
  r:=testRoom(t)
@@ -19,16 +19,16 @@ func discussionRoom(t *testing.T) *Room {
 }
 func TestThemeVotesAndTiming(t *testing.T) {
  r:=testRoom(t); initial:=r.CurrentTheme; rev:=r.Revision
- if left:=time.Until(r.TimerEnd); left<89*time.Second || left>90*time.Second {t.Fatal(left)}
+ if left:=time.Until(r.TimerEnd); left<119*time.Second || left>120*time.Second {t.Fatal(left)}
  r.SubmitAnswer("h","rascunho confirmado")
  r.ChangeTheme("a"); r.ChangeTheme("a")
  if r.CurrentTheme!=initial {t.Fatal("duplicate vote changed theme")}
  r.ChangeTheme("b")
  if r.CurrentTheme==initial || r.Revision!=rev+1 || len(r.Answers)!=0 || r.Players["h"].Answered {t.Fatal("majority did not reset theme")}
- previous:=r.CurrentTheme; r.ChangeTheme("h"); if r.CurrentTheme==previous {t.Fatal("host cannot change")}
+ previous:=r.CurrentTheme; r.ChangeTheme("h"); if r.CurrentTheme!=previous {t.Fatal("host bypassed majority")};r.ChangeTheme("a");if r.CurrentTheme==previous {t.Fatal("majority failed")}
  r.AdvanceExpired(r.TimerEnd)
  previous=r.CurrentTheme; r.ChangeTheme("h"); if r.CurrentTheme!=previous {t.Fatal("changed outside answering")}
- if len(Themes)!=64 {t.Fatal(len(Themes))}
+ if len(Themes)!=67 {t.Fatal(len(Themes))}
 }
 func TestPowersCancelAtEveryTier(t *testing.T) {
  for _,tier:=range TierOrder {t.Run(string(tier),func(t *testing.T){
@@ -70,15 +70,15 @@ func TestSecretAndValidation(t *testing.T) {
  view:=r.ViewForPlayer("h");blob,_:=json.Marshal(view)
  var obj map[string]any;json.Unmarshal(blob,&obj)
  if _,ok:=obj["results"];ok {t.Fatal("results disclosed early")}
- seen:=map[Tier]bool{};for _,p:=range r.Players {if seen[p.Assigned] {t.Fatal("duplicate assignment")};seen[p.Assigned]=true}
+ for _,p:=range r.Players {if TierIndex(p.Assigned)<0 {t.Fatal("invalid assigned tier")}}
 }
-func TestFiveRoundsReachFinal(t *testing.T) {
+func TestThreeRoundsReachFinal(t *testing.T) {
  r:=testRoom(t)
- for round:=1;round<=5;round++ {
+ for round:=1;round<=TotalRounds;round++ {
  r.AdvanceExpired(r.TimerEnd)
  for r.Phase==PhaseDiscussing {_,judge:=r.CurrentDiscussion();r.JudgePlace(judge,TierE);r.AdvanceExpired(r.TimerEnd)}
  if r.Phase!=PhaseReview {t.Fatal(r.Phase)}
  r.StartRound("h")
  }
- if r.Phase!=PhaseFinal || len(r.Results)!=5 {t.Fatal("final inaccessible")}
+ if r.Phase!=PhaseFinal || len(r.Results)!=TotalRounds {t.Fatal("final inaccessible")}
 }

@@ -350,9 +350,63 @@
   .theme-heading .theme-title { margin:10px 0 0; font-size:clamp(1.5rem,5vw,2.8rem); line-height:1.2; overflow-wrap:anywhere; }
   .round-label { color:var(--muted); font-size:12px; letter-spacing:1px; text-transform:uppercase; }
   @media(max-width:540px) { .entry-options { gap:12px; } .entry-options section { padding:14px 8px; } .entry-options .btn { padding:14px 8px; } .review-row { gap:8px; } .tier-row { grid-template-columns:44px 1fr; } .grade { font-size:10px; } }
+  .leave-toolbar { position:sticky; top:0; z-index:11; background:var(--bg); padding:10px 20px; text-align:right; border-bottom:1px solid #ffffff15; }
+  .leave-toolbar[hidden] { display:none; }
+  .tier-label { flex-direction:column; line-height:1.1; gap:6px; }
+  .tier-label small { font-size:9px; font-weight:600; text-align:center; line-height:1.3; }
+  .tier-description { font-size:13px; color:var(--muted); width:100%; }
+  .tier-btn small { display:block; font-size:9px; margin-top:5px; }
+  .tier-badge { flex-direction:column; gap:2px; width:58px; height:58px; }
+  .tier-badge small { font-size:8px; font-weight:600; }
+  .intro-title { font-size:clamp(2rem,6vw,3rem); margin:18px 0; }
+  .intro-lead { font-size:18px; line-height:1.6; margin-bottom:24px; color:var(--muted); }
+  .rules-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .rules-card { padding:22px; background:var(--card); border:1px solid #ffffff18; border-radius:16px; }
+  .rules-card h2 { font-size:18px; margin-bottom:12px; }
+  .rules-card p { color:var(--muted); line-height:1.7; font-size:14px; }
+  .submitted-answer { position:relative; padding:20px 65px 20px 20px; background:var(--card); border:2px solid var(--tier-c); border-radius:14px; }
+  .submitted-answer p { margin-top:12px; overflow-wrap:anywhere; }
+  .confirmation { color:var(--tier-c); font-size:12px; font-weight:800; }
+  .edit-answer { position:absolute; top:14px; right:14px; background:var(--bg); border:1px solid #ffffff30; border-radius:10px; padding:10px; cursor:pointer; font-size:18px; }
+  .theme-vote { margin-top:28px; }
+  .current-answer { text-align:center; font-size:20px; padding:24px; margin:16px 0; }
+  .like-button { border:1px solid #ffffff30; background:transparent; color:var(--text); padding:8px 12px; border-radius:999px; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .like-button.liked { background:#ec489922; border-color:#ec4899; }
+  .like-button:disabled { opacity:.45; }
+  .answer-reactions { margin-top:10px; }
+  .answer-text { color:var(--muted); overflow-wrap:anywhere; }
+  .review-row>div:first-child { min-width:0; overflow-wrap:anywhere; }
+  .positive { color:var(--tier-c); } .negative { color:var(--tier-s); }
+  .final-heading { text-align:center; padding:30px 0; }
+  .final-heading h1 { font-size:4rem; margin:12px 0; }
+  .final-heading p { color:var(--muted); }
+  .stats-panel { background:var(--card); border:1px solid #ffffff18; border-radius:18px; padding:24px; margin:20px 0; }
+  .stats-panel h2,.all-results h2 { font-size:20px; margin-bottom:22px; }
+  .podium { display:flex; align-items:flex-end; gap:12px; text-align:center; }
+  .podium-place { flex:1; min-width:0; }
+  .podium-medal { display:block; font-size:30px; margin-bottom:10px; }
+  .podium-place>strong { font-size:14px; }
+  .podium-place p { font-size:12px; margin:10px 0; color:var(--muted); overflow-wrap:anywhere; }
+  .podium-step { min-height:70px; background:#ffffff09; border:1px solid #ffffff18; border-radius:12px 12px 0 0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:12px 4px; }
+  .rank-1 .podium-step { min-height:130px; border-color:var(--tier-b); background:#fdd83512; }
+  .rank-2 .podium-step { min-height:100px; }
+  .podium-step>strong { font-size:28px; }.podium-step>span { font-size:10px; color:var(--muted); }
+  .stat-row { display:grid; grid-template-columns:minmax(100px,1fr) 2fr 45px; align-items:center; gap:14px; margin:18px 0; }
+  .stat-name { font-size:14px; overflow-wrap:anywhere; }.stat-name small { display:block; color:var(--muted); margin-top:4px; }
+  .stat-track { height:22px; position:relative; background:#ffffff09; border-radius:5px; }
+  .zero-axis { position:absolute; left:50%; height:100%; width:1px; background:#ffffff80; }
+  .stat-bar { position:absolute; top:3px; bottom:3px; border-radius:4px; }
+  .positive-bar { background:var(--tier-c); }.negative-bar { background:var(--tier-s); }
+  .popular-answer { display:flex; align-items:center; gap:14px; margin:16px 0; padding-bottom:16px; border-bottom:1px solid #ffffff12; }
+  .popular-answer>div { flex:1; min-width:0; overflow-wrap:anywhere; }.popular-answer p { font-size:12px; color:var(--muted); margin-top:7px; }
+  .popular-position { color:var(--tier-a); font-weight:900; }
+  .all-results { margin:32px 0; }.all-results h3 { font-size:16px; margin:26px 0 14px; }.all-results h3 span { display:block; font-size:12px; color:var(--muted); margin-top:6px; }
+  @media(max-width:600px) { .rules-grid { grid-template-columns:1fr; }.stats-panel { padding:16px; }.podium { gap:6px; }.podium-step>strong { font-size:24px; }.stat-row { grid-template-columns:minmax(90px,1fr) 1fr 32px; gap:8px; }.tier-badge { width:49px; height:52px; }.tier-badge small { font-size:7px; }.review-row { grid-template-columns:minmax(0,1fr) auto auto 24px; padding:10px; gap:7px; }.tier-options { gap:4px; }.tier-btn { padding:18px 3px; }.tier-btn small { font-size:8px; } }
+
 </style>
 </head>
 <body>
+<div class="leave-toolbar" id="leaveToolbar" hidden><button class="kick" id="btnLeave" onclick="leaveGame()">Sair da partida ↗</button></div>
 <div id="connectionStatus" class="connection-status" role="status" aria-live="polite" hidden></div>
 
 <!-- TELA 1: ENTRADA -->
@@ -385,8 +439,9 @@
 <script>
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 const TIERS=['S','A','B','C','E','F'];
-const LABELS={S:'Lendários',A:'Excelentes',B:'Consistentes',C:'Aceitáveis',E:'Ruim',F:'Desastrosos'};
+const LABELS={S:'Lendários',A:'Excelentes',B:'Consistentes',C:'Mais ou menos',E:'Ruim',F:'Desastrosos'};
 let ws, myState={}, timerInterval, draftKey='', draft='';
+const TIER_NOTES={S:'10',A:'9 e 8',B:'7 e 6,5',C:'6,5 e 5',E:'4, 3 e 2',F:'1 e 0'};
 const SESSION_KEY='tier-du-session-v1';
 let session=null, reconnectTimer, reconnectAttempt=0, heartbeatInterval, lastMessageAt=0, awaitingState=false;
 function readSession() {
@@ -414,7 +469,18 @@ function connectionStatus(text='') {
 }
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function send(type,data) { if(ws?.readyState===WebSocket.OPEN && (!awaitingState || type==='join' || type==='ping')) ws.send(JSON.stringify({type,data})); }
-function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id)); }
+function showScreen(id) {
+ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));
+ document.getElementById('leaveToolbar').hidden=id==='entry'||['instructions','review'].includes(myState.phase);
+}
+function leaveGame() {
+ const socket=ws;
+ if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({type:'leave'}));
+ clearSession();ws=null;socket?.close();clearInterval(timerInterval);
+ myState={};draft='';draftKey='';awaitingState=false;connectionStatus();showScreen('entry');
+ // A shared invite remains useful, but must not auto-resume the departed seat.
+}
+
 function scheduleReconnect() {
  if(!session || reconnectTimer) return;
  connectionStatus('Reconectando à sala… Sua vaga e seu rascunho estão guardados.');
@@ -431,6 +497,7 @@ function connect(name,code,token='') {
   lastMessageAt=Date.now();
   const d=JSON.parse(ev.data);
   if(d.type==='pong') return;
+  if(d.type==='left') {leaveGame();return;}
   if(d.type==='sessionReplaced') {
    session=null; clearTimeout(reconnectTimer); reconnectTimer=null; clearInterval(heartbeatInterval);
    try {sessionStorage.removeItem(SESSION_KEY);} catch {}
@@ -485,7 +552,7 @@ function renderState(d) {
  renderLobby(d.players||[],d.canStart);
  if(d.phase==='lobby') {showScreen('lobby'); return;}
  showScreen('game');
- ({answering:renderAnswering,discussing:renderDiscussing,power:renderPower,changes:renderChanges,review:renderReview,final:renderFinal}[d.phase]||(()=>{}))(d);
+ ({instructions:renderInstructions,answering:renderAnswering,discussing:renderDiscussing,power:renderPower,changes:renderChanges,review:renderReview,final:renderFinal}[d.phase]||(()=>{}))(d);
  if(focused) {const next=document.getElementById('answerText'); if(next) {next.focus(); next.setSelectionRange(...selection);} }
 }
 function renderLobby(players,canStart) {
@@ -493,45 +560,92 @@ function renderLobby(players,canStart) {
  document.getElementById('btnStart').disabled=!canStart;
  document.getElementById('btnStart').textContent=myState.host?'Iniciar partida (3+ jogadores)':'Aguardando o host iniciar';
 }
-function heading(d) {return `<div class="round-label">Rodada ${d.round} de 5</div><header class="theme-heading"><div class="theme-label">Tema da rodada</div><h1 class="theme-title">${esc(d.currentTheme)}</h1></header>`;}
-function people(d) {return `<div class="people">Resposta de <strong>${esc(d.discussingPlayerName)}</strong><br>Líder: <strong>${esc(d.judgeName)}</strong> (registra o ranking decidido pelo grupo)</div>`;}
-function badge(t) {return `<div class="tier-badge" role="img" aria-label="Nota ${esc(t)}" style="background:var(--tier-${String(t).toLowerCase()});${t==='B'?'color:#29220a':''}">${esc(t)}</div>`;}
-function board(d) {return TIERS.map(t=>`<div class="tier-row ${t.toLowerCase()}"><div class="tier-label ${t.toLowerCase()}">${t}</div><div>${(d.board||[]).filter(a=>a.placed===t).map(a=>`<div class="answer-card"><strong>${esc(a.playerName)}</strong>${esc(a.text)}</div>`).join('')}</div></div>`).join('');}
+function heading(d) {return `<div class="round-label">Rodada ${d.round} de ${d.totalRounds||3}</div><header class="theme-heading"><div class="theme-label">Tema da rodada</div><h1 class="theme-title">${esc(d.currentTheme)}</h1></header>`;}
+function people(d) {return `<div class="people">Resposta de <strong>${esc(d.discussingPlayerName)}</strong><br>Líder: <strong>${esc(d.judgeName)}</strong></div>`;}
+function tierCaption(t) {return `${LABELS[t]} (${TIER_NOTES[t]})`;}
+function badge(t) {return `<div class="tier-badge" role="img" aria-label="Tier ${esc(t)} (${esc(TIER_NOTES[t])})" style="background:var(--tier-${String(t).toLowerCase()});${t==='B'?'color:#29220a':''}"><span>${esc(t)}</span><small>(${esc(TIER_NOTES[t])})</small></div>`;}
+function tierRows(answers=[]) {return TIERS.map(t=>`<div class="tier-row ${t.toLowerCase()}"><div class="tier-label ${t.toLowerCase()}">${t}<small>(${TIER_NOTES[t]})</small></div><div><span class="tier-description">${LABELS[t]}</span>${answers.filter(a=>a.placed===t).map(a=>`<div class="answer-card"><strong>${esc(a.playerName)}</strong>${esc(a.text)}</div>`).join('')}</div></div>`).join('');}
+function board(d) {return tierRows(d.board||[]);}
+function renderInstructions(d) {
+ document.getElementById('gameContent').innerHTML=`<div class="round-label">Tier Du · Antes da partida</div><h1 class="intro-title">Um time, um desafio 🤝</h1><p class="intro-lead">Vocês jogam juntos para descobrir a letra original de cada resposta e somar o máximo de pontos em 3 temas.</p>
+ <div class="rules-grid">
+  <section class="rules-card"><h2>🤫 Autor da resposta</h2><p>Quando a sua resposta estiver em discussão, fique em silêncio e não expresse nada: sem dicas, gestos ou reações que entreguem sua letra.</p></section>
+  <section class="rules-card"><h2>👑 Líder da vez</h2><p>O líder registra a posição que o grupo decidiu em consenso. Ele muda a cada resposta: é o próximo jogador na ordem da sala.</p></section>
+  <section class="rules-card"><h2>💬 Quem discute</h2><p>Os demais conversam, comparam os tiers e defendem a posição em que a resposta da vez deveria ficar. Busquem uma decisão em conjunto.</p></section>
+  <section class="rules-card"><h2>✍️ Letra secreta e resposta</h2><p>Cada pessoa recebe uma letra aleatória; letras podem se repetir. Em até 2 minutos, escreva algo do tema que combine com sua letra e confirme. Para alterar, use o lápis e confirme novamente. Quando todos confirmarem, a discussão começa; ao acabar o tempo, vale a última resposta enviada, ou “sem resposta” se não houver uma.</p></section>
+  <section class="rules-card"><h2>⚡ Um poder por tema</h2><p>Depois da discussão, você pode subir ou descer uma posição se achar que o consenso ficou errado. Use para corrigir a decisão e ajudar o time. O poder pode ser usado uma única vez por tema e nunca na própria resposta. Você pode passar a vez e guardá-lo. Poderes opostos se anulam e as letras respeitam os limites S e F.</p></section>
+  <section class="rules-card"><h2>❤️ Respostas favoritas</h2><p>Nas telas de resultados, curta todas as respostas que achar muito boas, engraçadas ou com as quais concorda 100%. Pode curtir várias, mas nunca a sua própria. Toque novamente para retirar a curtida.</p></section>
+  <section class="rules-card"><h2>🗳️ Troca de tema</h2><p>Durante o envio das respostas, qualquer pessoa pode votar. O tema só muda quando mais da metade dos jogadores conectados votar a favor, inclusive o host. Isso limpa as respostas e reinicia os 2 minutos.</p></section>
+  <section class="rules-card"><h2>🎯 Pontos e gênios</h2><p>Cravou: +3. Uma posição de diferença: +1. Duas: −1; três: −3; quatro: −5; cinco: −7. Em “Gênios das alterações 🧠”, cada poder é avaliado sozinho contra o consenso: +2 por aproximar uma posição, −2 por afastar e 0 se esbarrar no limite. As curtidas não alteram esses pontos.</p></section>
+ </div><div class="help ready-status">${d.readyCount||0} de ${d.readyNeeded||0} jogadores prontos</div>
+ <button class="btn btn-primary" id="btnReady" ${d.iReady?'disabled':''} onclick="send('ready')">${d.iReady?'✓ Pronto! Aguardando os demais':'Entendi, prosseguir com o jogo'}</button>`;
+}
 function renderAnswering(d) {
  const key=`${d.code}:${d.round}:${d.revision}`;
- if(key!==draftKey) {draftKey=key; draft='';saveSession();}
+ if(key!==draftKey) {draftKey=key;draft=d.myAnswer||'';saveSession();}
  document.getElementById('gameContent').innerHTML=`${heading(d)}
- <div class="help">Você recebeu uma letra secreta. Escreva algo do tema que combine com esse nível: S é o mais alto e F é o mais baixo. Depois, o grupo tentará descobrir a posição da sua resposta. Não revele sua letra!</div>
- <div class="board-image"><img hidden src="/static/board.png" alt="Tabuleiro Tier Du" onload="this.hidden=false;this.nextElementSibling.hidden=true" onerror="this.remove()"><div class="board-fallback">${TIERS.map(t=>`<div class="tier-row ${t.toLowerCase()}"><div class="tier-label ${t.toLowerCase()}">${t}</div><div>${LABELS[t]}</div></div>`).join('')}</div><div class="board-theme">Tema da vez: ${esc(d.currentTheme)}</div></div>
- <div style="text-align:center">Sua letra secreta:<br><div class="my-tier" style="background:var(--tier-${d.myTier.toLowerCase()})">${d.myTier}</div><div>${LABELS[d.myTier]}</div></div>
- <div class="people">Autor: <strong>${esc(myState.name)}</strong><br>Líder da sua resposta: <strong>${esc(d.myLeaderName)}</strong> (registra o ranking decidido pelo grupo)</div>
+ <div class="board-image">${tierRows()}<div class="board-theme">Tema da vez: ${esc(d.currentTheme)}</div></div>
+ <div style="text-align:center">Sua letra secreta:<br><div class="my-tier" style="background:var(--tier-${d.myTier.toLowerCase()})">${d.myTier}</div><div>${tierCaption(d.myTier)}</div></div>
+ <div class="people">Autor: <strong>${esc(myState.name)}</strong> · Líder: <strong>${esc(d.myLeaderName)}</strong></div>
  <div class="timer" id="timer"></div>
- ${d.iAnswered?'<div class="help">Resposta enviada! Aguarde os outros jogadores.</div>':'<textarea id="answerText" aria-label="Sua resposta" placeholder="Escreva sua resposta..." maxlength="100"></textarea><button class="btn btn-primary" id="btnAnswer">Confirmar resposta</button>'}
- <div class="help">${d.host?'Como host, você pode trocar o tema imediatamente.':'Mais da metade dos jogadores precisa votar para trocar o tema.'} A troca reinicia o tempo de 1min30s e limpa as respostas para o novo tema.</div>
- <button class="btn btn-secondary" onclick="send('changeTheme')" ${!d.host&&d.iVotedTheme?'disabled':''}>${d.host?'Trocar tema agora':d.iVotedTheme?'Voto registrado':'Votar para trocar tema'}</button><p class="people">${d.themeVotes} de ${d.themeVotesNeeded} votos necessários</p>`;
- if(!d.iAnswered) {const input=document.getElementById('answerText'); input.value=draft; input.oninput=()=>{draft=input.value;saveSession();}; document.getElementById('btnAnswer').onclick=()=>{const text=input.value.trim(); if(text) send('answer',{text}); else alert('Escreva uma resposta');};}
+ ${d.iAnswered?`<div class="submitted-answer"><span class="confirmation">✓ Resposta confirmada</span><p>${esc(d.myAnswer||draft)}</p><button class="edit-answer" id="btnEditAnswer" aria-label="Editar resposta" title="Editar resposta" onclick="editAnswer()">✏️</button></div><p class="people">Aguardando as confirmações dos demais.</p>`:'<textarea id="answerText" aria-label="Sua resposta" placeholder="Escreva sua resposta..." maxlength="100"></textarea><button class="btn btn-primary" id="btnAnswer">Confirmar resposta</button>'}
+ <div class="theme-vote"><button class="btn btn-secondary" onclick="send('changeTheme')" ${d.iVotedTheme?'disabled':''}>${d.iVotedTheme?'✓ Voto registrado':'🗳️ Votar para trocar tema'}</button><p class="people">${d.themeVotes} de ${d.themeVotesNeeded} votos necessários</p></div>`;
+ if(!d.iAnswered) {
+  const input=document.getElementById('answerText');input.value=draft;
+  input.oninput=()=>{draft=input.value;saveSession();};
+  document.getElementById('btnAnswer').onclick=()=>{const text=input.value.trim();if(text) {draft=text;send('answer',{text});} else alert('Escreva uma resposta');};
+ }
  startTimer(d.timerEnd);
 }
+function editAnswer() {draft=myState.myAnswer||draft;saveSession();send('editAnswer');}
 function renderDiscussing(d) {
- const role=d.iAmTarget?'Sua resposta está sendo discutida. Ouça a conversa e não revele sua letra original.':d.iAmJudge?'Você é o líder desta resposta. Ouça todos e selecione abaixo a nota que o grupo fechou em consenso.':'Discuta com o grupo em qual ranking esta resposta se encaixa. O líder registrará a decisão de vocês.';
- document.getElementById('gameContent').innerHTML=`${heading(d)}${people(d)}<div class="answer-card">${esc(d.discussingText)}</div><div class="help">${role} Conversem antes de confirmar: a escolha abre a etapa dos poderes.</div>${board(d)}${d.iAmJudge?`<div class="tier-options">${TIERS.map(t=>`<button class="tier-btn ${t.toLowerCase()}" onclick="send('judge',{tier:'${t}'})">${t}</button>`).join('')}</div>`:'<div class="discussing-notice">Aguardando o líder registrar o consenso.</div>'}`;
+ document.getElementById('gameContent').innerHTML=`${heading(d)}${people(d)}<div class="answer-card current-answer">${esc(d.discussingText)}</div><div class="role-notice">${d.iAmTarget?'🤫 Sua resposta':d.iAmJudge?'👑 Você é o líder da vez':'💬 Hora da discussão'}</div>${board(d)}${d.iAmJudge?`<div class="tier-options">${TIERS.map(t=>`<button class="tier-btn ${t.toLowerCase()}" onclick="send('judge',{tier:'${t}'})">${t}<small>(${TIER_NOTES[t]})</small></button>`).join('')}</div>`:'<div class="discussing-notice">Aguardando a escolha do líder.</div>'}`;
 }
 function renderPower(d) {
  const disabled=d.myUsedPower||d.iAmTarget||d.myPowerChosen;
- document.getElementById('gameContent').innerHTML=`${heading(d)}${people(d)}<div class="answer-card">${esc(d.discussingText)}</div><div class="grade">Nota escolhida${badge(d.placed)}</div>
- <div class="help">Agora você pode subir ou descer esta resposta em uma posição. Cada jogador tem um poder por tema, e não pode usá-lo na própria resposta. Os poderes são somados: uma subida anula uma descida, inclusive em S e F. A nota nunca ultrapassa esses limites. Você também pode guardar o poder para outra resposta deste tema.</div>
- <div class="discussing-notice">${d.iAmTarget?'Você é o autor e não pode usar poder nesta resposta.':d.myPowerChosen?'Decisão registrada. Aguarde os demais.':d.myUsedPower?'Você já usou seu poder neste tema. Confirme para continuar.':'Escolha seu poder ou passe a vez.'}</div>
+ document.getElementById('gameContent').innerHTML=`${heading(d)}${people(d)}<div class="answer-card current-answer">${esc(d.discussingText)}</div><div class="grade">Nota escolhida${badge(d.placed)}</div>
+ <div class="discussing-notice">${d.iAmTarget?'🤫 Sua resposta':d.myPowerChosen?'✓ Decisão registrada':d.myUsedPower?'Poder já utilizado neste tema':'⚡ Sua decisão'}</div>
  <div class="timer" id="timer"></div><div class="power-options"><button class="power-btn up" ${disabled?'disabled':''} onclick="send('power',{choice:1})">↑ Subir 1 tier</button><button class="power-btn" ${d.iAmTarget||d.myPowerChosen?'disabled':''} onclick="send('power',{choice:0})">Não fazer nada</button><button class="power-btn down" ${disabled?'disabled':''} onclick="send('power',{choice:-1})">↓ Descer 1 tier</button></div>${board(d)}`;
  startTimer(d.timerEnd);
 }
 function renderChanges(d) {
  const change=d.changes[0];
- document.getElementById('gameContent').innerHTML=`${heading(d)}<h2>O que os poderes mudaram</h2>${people(d)}<div class="answer-card">${esc(d.discussingText)}</div><div class="help">${d.changes.map(c=>`<p><strong>${esc(c.playerName)}</strong>: ${c.choice===1?'↑ pediu para subir 1 tier':'↓ pediu para descer 1 tier'}</p>`).join('')}</div><div class="review-row"><div>Resultado dos poderes${change.before===change.after?'<p>A nota permaneceu igual: poderes opostos se anulam e os limites são S e F.</p>':''}</div><div class="grade">Antes${badge(change.before)}</div><div class="grade">Depois${badge(change.after)}</div></div><div class="timer" id="timer"></div>${d.host?'<button class="btn btn-primary" onclick="send(\'continue\')">Continuar</button>':'<p>A próxima etapa começa automaticamente.</p>'}`;
+ document.getElementById('gameContent').innerHTML=`${heading(d)}<h2>⚡ Alterações da vez</h2>${people(d)}<div class="answer-card">${esc(d.discussingText)}</div><div class="help">${d.changes.map(c=>`<p><strong>${esc(c.playerName)}</strong>: ${c.choice===1?'↑ subir 1 tier':'↓ descer 1 tier'}</p>`).join('')}</div><div class="review-row"><div>${change.before===change.after?'A nota permaneceu igual.':'Resultado dos poderes'}</div><div class="grade">Antes${badge(change.before)}</div><div class="grade">Depois${badge(change.after)}</div></div><div class="timer" id="timer"></div>${d.host?'<button class="btn btn-primary" onclick="send(\'continue\')">Continuar</button>':'<p>A próxima etapa começa automaticamente.</p>'}`;
  startTimer(d.timerEnd);
 }
-function resultRows(r) {return r.answers.map(a=>{const diff=Math.abs(TIERS.indexOf(a.original)-TIERS.indexOf(a.placed)),pts=diff===0?3:diff===1?1:-1; return `<div class="review-row"><div><strong>${esc(a.playerName)}</strong><br><span style="color:var(--muted)">${esc(a.text)}</span>${a.leaderName?`<br><small>Líder: ${esc(a.leaderName)} (registra o consenso)</small>`:''}</div><div class="grade">Nota escolhida${badge(a.placed)}</div><div class="grade">Nota original${badge(a.original)}</div><strong>${pts>0?'+':''}${pts}</strong></div>`;}).join('');}
-function renderReview(d) {const r=d.review; document.getElementById('gameContent').innerHTML=`${heading(d)}<div class="score-box"><div>Pontuação do grupo</div><div class="num ${r.score>=0?'positive':'negative'}">${r.score>0?'+':''}${r.score}</div></div>${resultRows(r)}${d.host?`<button class="btn btn-primary" onclick="send('nextRound')">${d.nextRound?'Próximo tema →':'Ver resultado final'}</button>`:'<p class="help">Aguardando o host continuar.</p>'}`;}
-function renderFinal(d) {const total=d.results.reduce((s,r)=>s+r.score,0),best=Math.max(...d.results.map(r=>r.score)); document.getElementById('gameContent').innerHTML=`<div style="text-align:center"><div class="theme-label">RESULTADO FINAL · TIER DU</div><h1 class="timer">${total>0?'+':''}${total}</h1></div><div class="final-score">${d.results.map((r,i)=>`<div class="final-row ${r.score===best?'best':''}"><div><strong>Rodada ${i+1}</strong><br>${esc(r.theme)}</div><strong>${r.score}</strong></div>${resultRows(r)}`).join('')}</div><button class="btn btn-secondary" onclick="clearSession();location.reload()">Jogar de novo</button>`;}
+function pointsFor(original,placed) {return 3-2*Math.abs(TIERS.indexOf(original)-TIERS.indexOf(placed));}
+const signed=n=>n>0?`+${n}`:String(n);
+function likeButton(a,round) {
+ const own=a.playerId===myState.myID || a.canLike===false;
+ return `<button class="like-button ${a.myLiked?'liked':''}" ${own?'disabled':''} aria-label="${own?'Sua própria resposta':a.myLiked?'Retirar curtida':'Curtir resposta'} de ${esc(a.playerName)}" aria-pressed="${!!a.myLiked}" ${own?'title="Você não pode curtir sua própria resposta"':`onclick="send('like',{round:${round},playerID:'${esc(a.playerId)}'})"`}>${a.myLiked?'❤️':'♡'} <span>${a.likeCount||0}</span></button>`;
+}
+function resultRows(r,round=r.round||myState.round) {return r.answers.map(a=>{const pts=a.score??pointsFor(a.original,a.placed);return `<div class="review-row"><div><strong>${esc(a.playerName)}</strong><br><span class="answer-text">${esc(a.text)}</span>${a.leaderName?`<br><small>Líder: ${esc(a.leaderName)}</small>`:''}<div class="answer-reactions">${likeButton(a,round)}</div></div><div class="grade">Nota escolhida${badge(a.placed)}</div><div class="grade">Nota original${badge(a.original)}</div><strong class="${pts<0?'negative':'positive'}">${signed(pts)}</strong></div>`;}).join('');}
+function renderReview(d) {
+ const r=d.review;
+ document.getElementById('gameContent').innerHTML=`${heading(d)}<div class="score-box"><div>Pontuação do grupo</div><div class="num ${r.score>=0?'positive':'negative'}">${signed(r.score)}</div></div>${resultRows(r,d.round)}${d.host?`<button class="btn btn-primary" onclick="send('nextRound')">${d.nextRound?'Próximo tema →':'Ver os gráficos da partida 📊'}</button>`:'<p class="people">Aguardando o host continuar.</p>'}`;
+}
+function statsChart(title,items,metric,emptyText) {
+ const sorted=[...items].sort((a,b)=>b[metric]-a[metric]||a.playerName.localeCompare(b.playerName));
+ const max=Math.max(1,...sorted.map(p=>Math.abs(p[metric])));
+ return `<section class="stats-panel"><h2>${title}</h2>${sorted.length?sorted.map((p,i)=>`<div class="stat-row"><div class="stat-name"><span>${i>0&&sorted[i-1][metric]===p[metric]?sorted.findIndex(x=>x[metric]===p[metric])+1:i+1}.</span> ${esc(p.playerName)} ${metric==='powerScore'?`<small>· ${p.powerUses} ${p.powerUses===1?'poder':'poderes'}</small>`:''}</div><div class="stat-track" role="img" aria-label="${esc(p.playerName)}: ${signed(p[metric])} pontos"><div class="stat-bar ${p[metric]<0?'negative-bar':'positive-bar'}" style="width:${Math.abs(p[metric])/max*50}%;${p[metric]<0?'right':'left'}:50%"></div><span class="zero-axis"></span></div><strong class="${p[metric]<0?'negative':'positive'}">${signed(p[metric])}</strong></div>`).join(''):`<p class="people">${emptyText}</p>`}</section>`;
+}
+function roundPodium(results) {
+ const ranked=results.map((r,i)=>({...r,index:i+1})).sort((a,b)=>b.score-a.score||a.index-b.index);
+ const display=[ranked[1],ranked[0],ranked[2]].filter(Boolean);
+ return `<section class="stats-panel"><h2>🏆 Pódio dos temas</h2><div class="podium">${display.map(r=>{const rank=ranked.findIndex(x=>x.score===r.score)+1;return `<div class="podium-place rank-${rank}"><span class="podium-medal">${['🥇','🥈','🥉'][rank-1]}</span><strong>Rodada ${r.index}</strong><p>${esc(r.theme)}</p><div class="podium-step"><strong>${signed(r.score)}</strong><span>pontos · ${rank}º lugar</span></div></div>`;}).join('')}</div></section>`;
+}
+function renderFinal(d) {
+ const results=d.results||[],total=results.reduce((sum,r)=>sum+r.score,0),stats=d.stats||[];
+ const popular=results.flatMap((r,i)=>r.answers.map(a=>({...a,round:i+1,theme:r.theme}))).filter(a=>a.likeCount>0).sort((a,b)=>b.likeCount-a.likeCount||a.round-b.round||a.playerName.localeCompare(b.playerName)).slice(0,5);
+ document.getElementById('gameContent').innerHTML=`<div class="final-heading"><div class="theme-label">RESULTADO FINAL · TIER DU</div><h1>${signed(total)}</h1><p>Pontos do time em ${results.length} temas</p></div>
+ ${roundPodium(results)}
+ ${statsChart('🎯 Mestres das respostas',stats,'score','Ainda não há respostas pontuadas.')}
+ ${statsChart('🧠 Gênios das alterações',stats,'powerScore','Nenhum poder foi utilizado.')}
+ <section class="stats-panel"><h2>❤️ As 5 respostas mais curtidas</h2>${popular.length?popular.map((a,i)=>`<div class="popular-answer"><span class="popular-position">${i+1}º</span><div><strong>${esc(a.text)}</strong><p>${esc(a.playerName)} · ${esc(a.theme)}</p></div>${likeButton(a,a.round)}</div>`).join(''):'<p class="people">Ainda não há curtidas. Escolha suas favoritas nas respostas abaixo!</p>'}</section>
+ <section class="all-results"><h2>📝 Todas as respostas</h2>${results.map((r,i)=>`<h3>Rodada ${i+1} · ${esc(r.theme)} <span>${signed(r.score)} pontos</span></h3>${resultRows(r,i+1)}`).join('')}</section>
+ <button class="btn btn-secondary" onclick="leaveGame()">Jogar de novo</button>`;
+}
+
 function startTimer(end) {clearInterval(timerInterval); const tick=()=>{const el=document.getElementById('timer'); const seconds=Math.max(0,Math.ceil((end-Date.now())/1000)); if(el) el.textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;}; tick(); timerInterval=setInterval(tick,250);}
 const code=new URLSearchParams(location.search).get('code'); if(code) document.getElementById('inputCode').value=code;
 function resumeOnReturn() {

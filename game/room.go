@@ -41,10 +41,14 @@ func ShiftTier(t Tier, delta int) Tier {
 	return TierOrder[i]
 }
 
+const TotalRounds = 3
+const AnswerDuration = 120 * time.Second
+
 type Phase string
 
 const (
 	PhaseLobby      Phase = "lobby"
+ PhaseInstructions Phase = "instructions"
 	PhaseAnswering  Phase = "answering"
 	PhaseDiscussing Phase = "discussing"
 	PhasePower      Phase = "power"
@@ -55,6 +59,7 @@ const (
 
 type Player struct {
 	SessionToken string `json:"-"`
+ Left bool `json:"-"`
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Host      bool   `json:"host"`
@@ -71,6 +76,8 @@ type Player struct {
 
 type AnswerEntry struct {
  LeaderName string `json:"leaderName,omitempty"`
+ Likes map[string]bool `json:"-"`
+ Powers []PowerAction `json:"powers,omitempty"`
 	PlayerID   string `json:"playerId"`
 	PlayerName string `json:"playerName"`
 	Text       string `json:"text"`
@@ -102,7 +109,9 @@ type Room struct {
 
 	TimerEnd time.Time
 
-	ThemeVotes map[string]bool
+	Ready map[string]bool
+ IntroPlayers map[string]bool
+ ThemeVotes map[string]bool
  Revision int
  Changes []map[string]any
  Results []*RoundResult
@@ -158,21 +167,21 @@ func (r *Room) judgeForAnswer(ownerID string) string {
 }
 
 func (r *Room) assignTiers() {
-	tiers := append([]Tier(nil), TierOrder...)
- rand.Shuffle(len(tiers), func(i,j int) { tiers[i],tiers[j]=tiers[j],tiers[i] })
- i := 0
-	for _, p := range r.Players {
-		p.Assigned = tiers[i % len(tiers)]
- i++
-		p.Answer = ""
-		p.Answered = false
-		p.UsedPower = false
-		p.PowerChoice = 0
-		p.powerChosen = false
-	}
+ for _, p := range r.Players {
+  // Independent draws: repeated tiers are valid for any player count.
+  p.Assigned = TierOrder[rand.Intn(len(TierOrder))]
+  p.Answer = ""
+  p.Answered = false
+  p.UsedPower = false
+  p.PowerChoice = 0
+  p.powerChosen = false
+ }
 }
 
 var Themes = []string{
+"Ele(a) é um 10 mas...",
+"Tóxico em uma relação (S) ou normal",
+"Matérias escolares",
 "Comidas típicas de Natal",
 "Frutas tropicais",
 "Doces/Salgados de aniversário",
@@ -184,7 +193,7 @@ var Themes = []string{
 "Animais de fazenda",
 "Animais extintos",
 "Insetos",
-"Vilões da Disney",
+"Vilões",
 "Personagens da Marvel/DC",
 "Youtuberes",
 "Personagens que dão mais medo em filmes",
@@ -259,28 +268,37 @@ func (r *Room) pickTheme() string {
 }
 
 func (r *Room) StartRound(requesterID string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if p := r.Players[requesterID]; p == nil || !p.Host || (r.Phase != PhaseLobby && r.Phase != PhaseReview) { return false }
- if r.Phase == PhaseLobby && r.connectedCountLocked() < 3 { return false }
- if r.Round >= 5 {
-		r.Phase = PhaseFinal
-		return false
-	}
-	r.Round++
+ r.mu.Lock()
+ defer r.mu.Unlock()
+ p:=r.Players[requesterID]
+ if p==nil || p.Left || !p.Connected || !p.Host { return false }
+ if r.Phase==PhaseLobby {
+  if r.connectedCountLocked()<3 {return false}
+  r.Ready=map[string]bool{}
+  r.IntroPlayers=map[string]bool{}
+  for id,p:=range r.Players {if p.Connected && !p.Left {r.IntroPlayers[id]=true}}
+  r.Phase=PhaseInstructions
+  return true
+ }
+ if r.Phase!=PhaseReview {return false}
+ if r.Round>=TotalRounds {r.Phase=PhaseFinal;return true}
+ r.startRoundLocked()
+ return true
+}
+
+func (r *Room) startRoundLocked() {
+ r.Round++
  r.Revision++
- r.ThemeVotes = map[string]bool{}
- r.Changes = nil
-	theme := r.pickTheme()
-	r.UsedThemes = append(r.UsedThemes, theme)
-	r.CurrentTheme = theme
-	r.Answers = nil
-	r.Discussion = nil
-	r.DiscIdx = 0
-	r.assignTiers()
-	r.Phase = PhaseAnswering
-	r.TimerEnd = time.Now().Add(90 * time.Second)
-	return true
+ r.ThemeVotes=map[string]bool{}
+ r.Changes=nil
+ r.CurrentTheme=r.pickTheme()
+ r.UsedThemes=append(r.UsedThemes,r.CurrentTheme)
+ r.Answers=nil
+ r.Discussion=nil
+ r.DiscIdx=0
+ r.assignTiers()
+ r.Phase=PhaseAnswering
+ r.TimerEnd=time.Now().Add(AnswerDuration)
 }
 
 func (r *Room) SubmitAnswer(playerID, text string) bool {
@@ -317,6 +335,7 @@ func (r *Room) allAnsweredLocked() bool {
 func (r *Room) AdvanceExpired(now time.Time) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.connectedCountLocked()==0 {return false}
 	if r.TimerEnd.IsZero() || now.Before(r.TimerEnd) {
 		return false
 	}
@@ -331,7 +350,7 @@ func (r *Room) AdvanceExpired(now time.Time) bool {
 			r.Answers = append(r.Answers, &AnswerEntry{
 				PlayerID:   p.ID,
 				PlayerName: p.Name,
-				Text:       "(sem resposta)",
+				Text:       unansweredText(p.Answer),
 				Original:   p.Assigned,
 			})
 		}
@@ -453,6 +472,8 @@ func (r *Room) applyPowersLocked() bool {
  r.Changes = nil
  for _, id := range r.Order { p := r.Players[id]; if p.PowerChoice != 0 {
  delta -= p.PowerChoice
+ contribution := ScoreDiff(entry.Original, ShiftTier(before, -p.PowerChoice)) - ScoreDiff(entry.Original, before)
+ entry.Powers=append(entry.Powers,PowerAction{PlayerID:p.ID,PlayerName:p.Name,Choice:p.PowerChoice,Points:contribution})
  r.Changes = append(r.Changes, map[string]any{"playerName":p.Name,"choice":p.PowerChoice})
  } }
  entry.Placed = ShiftTier(before, delta)
@@ -482,18 +503,7 @@ func (r *Room) Continue(requesterID string) {
 func (r *Room) finishRoundLocked() {
 	score := 0
 	for _, a := range r.Answers {
-		diff := TierIndex(a.Original) - TierIndex(a.Placed)
-		if diff < 0 {
-			diff = -diff
-		}
-		switch {
-		case diff == 0:
-			score += 3
-		case diff == 1:
-			score += 1
-		default:
-			score -= 1
-		}
+		score += ScoreDiff(a.Original, a.Placed)
 	}
 	r.Results = append(r.Results, &RoundResult{
 		Theme:   r.CurrentTheme,
@@ -508,7 +518,7 @@ func (r *Room) ChangeTheme(requesterID string) {
  if p==nil || !p.Connected || r.Phase!=PhaseAnswering { return }
  if r.ThemeVotes==nil { r.ThemeVotes=map[string]bool{} }
  r.ThemeVotes[requesterID]=true
- if !p.Host && len(r.ThemeVotes)<=r.connectedCountLocked()/2 { return }
+ if len(r.ThemeVotes)<=r.connectedCountLocked()/2 { return }
  r.changeThemeLocked()
 }
 func (r *Room) changeThemeLocked() {
@@ -518,7 +528,7 @@ func (r *Room) changeThemeLocked() {
  r.Revision++
  r.Answers=nil
  for _, p:=range r.Players { p.Answer=""; p.Answered=false }
- r.TimerEnd=time.Now().Add(90*time.Second)
+ r.TimerEnd=time.Now().Add(AnswerDuration)
 }
 func (r *Room) connectedCountLocked() int { n:=0; for _,p:=range r.Players { if p.Connected { n++ } }; return n }
 func (r *Room) PlayerIDs() []string { r.mu.RLock(); defer r.mu.RUnlock(); return append([]string(nil),r.Order...) }
@@ -540,6 +550,7 @@ func (r *Room) Disconnect(id string) {
  delete(r.ThemeVotes,id)
  if wasHost { for _,pid:=range r.Order { if next:=r.Players[pid]; next.Connected { next.Host=true; break } } }
  if r.connectedCountLocked()==0 { return }
+ if r.Phase==PhaseInstructions {r.beginWhenReadyLocked()}
  if r.Phase==PhaseAnswering {
  if len(r.ThemeVotes)>r.connectedCountLocked()/2 { r.changeThemeLocked() } else if r.allAnsweredLocked() { r.beginDiscussionLocked() }
  }
@@ -552,7 +563,7 @@ func (r *Room) ViewForPlayer(playerID string) (result map[string]any) {
  // Detach slices and answer pointers before the socket serializes the view.
  defer func() { if result!=nil { data,_:=json.Marshal(result); var snapshot map[string]any; json.Unmarshal(data,&snapshot); result=snapshot } }()
 	p := r.Players[playerID]
-	if p == nil {
+	if p == nil || p.Left {
 		return nil
 	}
 	view := map[string]any{
@@ -562,13 +573,19 @@ func (r *Room) ViewForPlayer(playerID string) (result map[string]any) {
 		"currentTheme": r.CurrentTheme,
 		"players":      r.playersSummary(),
 		"canStart": p.Host && r.connectedCountLocked() >= 3,
+ "totalRounds":TotalRounds,
  "host": p.Host, "myID": playerID, "revision":r.Revision,
  "themeVotes":len(r.ThemeVotes), "themeVotesNeeded":r.connectedCountLocked()/2+1, "iVotedTheme":r.ThemeVotes[playerID],
 	}
 
-	if r.Phase == PhaseLobby {
-		return view
-	}
+	if r.Phase == PhaseLobby { return view }
+ if r.Phase == PhaseInstructions {
+  ready,needed:=0,0;for id:=range r.IntroPlayers {if p:=r.Players[id];p!=nil && !p.Left {needed++;if r.Ready[id] {ready++}}}
+  view["readyCount"]=ready
+  view["readyNeeded"]=needed
+  view["iReady"]=r.Ready[playerID]
+  return view
+ }
 
 	board := []map[string]any{}
  for _,a:=range r.Answers { if a.PlacedSet { board=append(board,map[string]any{"text":a.Text,"playerName":a.PlayerName,"placed":a.Placed}) } }
@@ -577,6 +594,7 @@ func (r *Room) ViewForPlayer(playerID string) (result map[string]any) {
  if leader:=r.Players[r.judgeForAnswer(playerID)]; leader!=nil { view["myLeaderName"]=leader.Name }
  view["myTier"] = string(p.Assigned)
 	view["iAnswered"] = p.Answered
+ view["myAnswer"]=p.Answer
 
 	if r.Phase == PhaseAnswering {
 		view["timerEnd"] = r.TimerEnd.UnixMilli()
@@ -605,15 +623,18 @@ func (r *Room) ViewForPlayer(playerID string) (result map[string]any) {
 
 	if r.Phase == PhaseReview {
 		if len(r.Results) > 0 {
-			view["review"] = r.Results[len(r.Results)-1]
+			view["review"] = r.resultViewLocked(r.Results[len(r.Results)-1],r.Round,playerID)
 		}
-		view["nextRound"] = r.Round < 5
+		view["nextRound"] = r.Round < TotalRounds
 		view["host"] = p.Host
 		return view
 	}
 
 	if r.Phase == PhaseFinal {
-		view["results"] = r.Results
+		results:=[]map[string]any{}
+  for i,result:=range r.Results {results=append(results,r.resultViewLocked(result,i+1,playerID))}
+  view["results"] = results
+  view["stats"] = r.statsLocked()
 		return view
 	}
 
@@ -624,10 +645,11 @@ func (r *Room) playersSummary() []map[string]any {
 	list := []map[string]any{}
 	for _, id := range r.Order {
 		p := r.Players[id]
+ if p.Left {continue}
 		list = append(list, map[string]any{
 			"id":   p.ID,
 			"name": p.Name,
-			"host": p.Host, "connected":p.Connected,
+			"host": p.Host, "connected":p.Connected, "ready":r.Ready[id],
 		})
 	}
 	return list
@@ -644,6 +666,6 @@ func ScoreDiff(original, placed Tier) int {
 	case 1:
 		return 1
 	default:
-		return -1
+		return 3 - 2*diff
 	}
 }

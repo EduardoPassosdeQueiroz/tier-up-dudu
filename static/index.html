@@ -320,7 +320,7 @@
     .theme-title { font-size: 3rem; }
   }
 
-  #gameContent { width:100%; max-width:1000px; margin:auto; }
+  #gameContent { width:100%; min-width:0; max-width:1000px; margin:auto; }
   .entry-options { display:grid; grid-template-columns:1fr 1fr; gap:32px; width:100%; max-width:780px; margin:52px 0 28px; }
   .entry-options section { padding:24px; border:1px solid #ffffff20; border-radius:16px; background:var(--card); }
   .entry-options p { min-height:48px; margin-bottom:20px; line-height:1.5; }
@@ -337,7 +337,7 @@
   .tier-row.f { background:#8e44ad26; }
   .tier-label.e { color:var(--tier-e); }
   .tier-btn.e { background:var(--tier-e); }
-  .tier-label.b,.tier-btn.b { color:#29220a; }
+  .tier-label.b { color:var(--tier-b); } .tier-btn.b { color:#29220a; }
   .tier-row > div:last-child { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .grade { text-align:center; font-size:12px; display:grid; justify-items:center; gap:6px; }
   .tier-badge { width:52px; height:52px; }
@@ -428,6 +428,7 @@
   </div>
   <div class="players-list" id="playersList"></div>
   <button class="btn btn-primary btn-start" id="btnStart" disabled>Iniciar partida (3+ jogadores)</button>
+  <button class="kick" onclick="leaveGame()">Sair da partida</button>
   <div class="copy-link" id="copyLink">Copiar link da sala</div>
 </div>
 
@@ -439,7 +440,8 @@
 <script>
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 const TIERS=['S','A','B','C','E','F'];
-const LABELS={S:'Lendários',A:'Excelentes',B:'Consistentes',C:'Mais ou menos',E:'Ruim',F:'Desastrosos'};
+const LABELS={S:'Lendários',A:'Excelentes',B:'Bons',C:'Mais ou menos',E:'Ruim',F:'Desastrosos'};
+const NOTES={S:'10',A:'9 e 8',B:'7 e 6,5',C:'6,5 e 5',E:'4, 3 e 2',F:'1 e 0'};
 let ws, myState={}, timerInterval, draftKey='', draft='';
 const TIER_NOTES={S:'10',A:'9 e 8',B:'7 e 6,5',C:'6,5 e 5',E:'4, 3 e 2',F:'1 e 0'};
 const SESSION_KEY='tier-du-session-v1';
@@ -512,7 +514,7 @@ function connect(name,code,token='') {
    return;
   }
   if(d.error) {
-   const errors={sala_nao_encontrada:'Sala não encontrada.',nome_invalido:'Use um nome de até 20 caracteres.',partida_em_andamento:'Esta partida já começou.',removido:'O host removeu você da sala.',sessao_expirada:'Esta sala não está mais disponível. Crie uma nova sala ou entre em outra.'};
+   const errors={sala_nao_encontrada:'Sala não encontrada.',nome_invalido:'Use um nome de até 20 caracteres.',nome_duplicado:'Esse nome já está em uso nesta sala. Escolha outro nome.',partida_em_andamento:'Esta partida já começou.',removido:'O host removeu você da sala.',sessao_expirada:'Esta sala não está mais disponível. Crie uma nova sala ou entre em outra.'};
    clearSession(); ws=null; socket.close(); connectionStatus(); showScreen('entry'); alert(errors[d.error]||d.error); return;
   }
   awaitingState=false; reconnectAttempt=0; clearTimeout(reconnectTimer); reconnectTimer=null;
@@ -551,6 +553,8 @@ function renderState(d) {
  saveSession();
  renderLobby(d.players||[],d.canStart);
  if(d.phase==='lobby') {showScreen('lobby'); return;}
+ if(d.phase==='answering' && myState._themeRevision!==undefined && myState._themeRound===d.round && myState._themeRevision!==d.revision) alert('O tema mudou!');
+ myState._themeRevision=d.revision; myState._themeRound=d.round;
  showScreen('game');
  ({instructions:renderInstructions,answering:renderAnswering,discussing:renderDiscussing,power:renderPower,changes:renderChanges,review:renderReview,final:renderFinal}[d.phase]||(()=>{}))(d);
  if(focused) {const next=document.getElementById('answerText'); if(next) {next.focus(); next.setSelectionRange(...selection);} }

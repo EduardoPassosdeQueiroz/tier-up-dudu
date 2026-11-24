@@ -14,7 +14,7 @@ func (r *Room) ReadyToPlay(playerID string) bool {
 	if p == nil || p.Left || !p.Connected || r.Phase != PhaseInstructions {
 		return false
 	}
-	r.Ready[playerID] = true
+	r.ReadyState[playerID] = true
 	r.IntroPlayers[playerID] = true
 	return r.beginWhenReadyLocked()
 }
@@ -22,7 +22,7 @@ func (r *Room) ReadyToPlay(playerID string) bool {
 func (r *Room) beginWhenReadyLocked() bool {
 	if r.connectedCountLocked() == 0 { return false }
 	for id := range r.IntroPlayers {
-		if p:=r.Players[id]; p!=nil && !p.Left && !r.Ready[id] { return false }
+		if p:=r.Players[id]; p!=nil && !p.Left && !r.ReadyState[id] { return false }
 	}
 	r.startRoundLocked()
 	return true
@@ -55,7 +55,7 @@ func (r *Room) Leave(playerID string) {
 	if p == nil { return }
 	p.Left = true
 	p.SessionToken = ""
-	delete(r.Ready, playerID)
+	delete(r.ReadyState, playerID)
 	delete(r.IntroPlayers, playerID)
 	if r.Phase == PhaseInstructions { r.beginWhenReadyLocked() }
 	if r.Phase == PhaseLobby { r.removeLobbyPlayerLocked(playerID) }

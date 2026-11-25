@@ -403,15 +403,6 @@
   .all-results { margin:32px 0; }.all-results h3 { font-size:16px; margin:26px 0 14px; }.all-results h3 span { display:block; font-size:12px; color:var(--muted); margin-top:6px; }
   @media(max-width:600px) { .rules-grid { grid-template-columns:1fr; }.stats-panel { padding:16px; }.podium { gap:6px; }.podium-step>strong { font-size:24px; }.stat-row { grid-template-columns:minmax(90px,1fr) 1fr 32px; gap:8px; }.tier-badge { width:49px; height:52px; }.tier-badge small { font-size:7px; }.review-row { grid-template-columns:minmax(0,1fr) auto auto 24px; padding:10px; gap:7px; }.tier-options { gap:4px; }.tier-btn { padding:18px 3px; }.tier-btn small { font-size:8px; } }
 
-  .theme-options { display:grid; gap:14px; margin:24px 0; }
-  .theme-option { text-align:left; white-space:normal; overflow-wrap:anywhere; margin:0; border:2px solid #ffffff26; background:var(--card); color:var(--text); }
-  .theme-option[aria-pressed="true"] { border-color:var(--tier-a); background:linear-gradient(120deg,var(--card),#ff980022); }
-  .theme-option small { display:block; color:var(--muted); margin-top:8px; }
-  .secret-tier { display:flex; flex-direction:column; align-items:center; justify-content:center; width:104px; height:104px; margin:14px auto; border:2px solid #ffffff55; border-radius:16px; color:white; font:900 48px 'Nunito',sans-serif; background:linear-gradient(135deg,var(--tier-s),var(--tier-a),var(--tier-e),var(--tier-f)); touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; cursor:pointer; }
-  .secret-tier small { font-size:13px; }
-  .secret-tier.revealed { background:var(--secret-color); }
-  .secret-tier:focus-visible { outline:3px solid var(--tier-a); outline-offset:4px; }
-  @media(max-width:600px) { #lobby > .kick { margin-top:28px; margin-bottom:12px; min-height:44px; } }
 </style>
 </head>
 <body>
@@ -565,7 +556,7 @@ function renderState(d) {
  if(d.phase==='answering' && myState._themeRevision!==undefined && myState._themeRound===d.round && myState._themeRevision!==d.revision) alert('O tema mudou!');
  myState._themeRevision=d.revision; myState._themeRound=d.round;
  showScreen('game');
- ({instructions:renderInstructions,voting:renderVoting,answering:renderAnswering,discussing:renderDiscussing,power:renderPower,changes:renderChanges,review:renderReview,final:renderFinal}[d.phase]||(()=>{}))(d);
+ ({instructions:renderInstructions,answering:renderAnswering,discussing:renderDiscussing,power:renderPower,changes:renderChanges,review:renderReview,final:renderFinal}[d.phase]||(()=>{}))(d);
  if(focused) {const next=document.getElementById('answerText'); if(next) {next.focus(); next.setSelectionRange(...selection);} }
 }
 function renderLobby(players,canStart) {
@@ -585,43 +576,24 @@ function renderInstructions(d) {
   <section class="rules-card"><h2>🤫 Autor da resposta</h2><p>Quando a sua resposta estiver em discussão, fique em silêncio e não expresse nada: sem dicas, gestos ou reações que entreguem sua letra.</p></section>
   <section class="rules-card"><h2>👑 Líder da vez</h2><p>O líder registra a posição que o grupo decidiu em consenso. Ele muda a cada resposta: é o próximo jogador na ordem da sala.</p></section>
   <section class="rules-card"><h2>💬 Quem discute</h2><p>Os demais conversam, comparam os tiers e defendem a posição em que a resposta da vez deveria ficar. Busquem uma decisão em conjunto.</p></section>
-  <section class="rules-card"><h2>✍️ Letra secreta e resposta</h2><p>Cada pessoa recebe uma letra aleatória; letras podem se repetir. Pressione e segure o quadrado para ver sua nota secreta, e solte para escondê-la. Em até 2 minutos, escreva algo do tema que combine com sua letra e confirme. Para alterar, use o lápis e confirme novamente. Quando todos confirmarem, a discussão começa; ao acabar o tempo, vale a última resposta enviada, ou “sem resposta” se não houver uma.</p></section>
-  <section class="rules-card"><h2>⚡ Um poder por tema</h2><p>Depois da discussão, você pode subir ou descer uma posição se achar que o consenso ficou errado. Use para corrigir a decisão e ajudar o time. Você tem 15 segundos para decidir. O poder pode ser usado uma única vez por tema e nunca na própria resposta; depois de usá-lo, você aguarda automaticamente os demais. Você pode passar a vez e guardá-lo. Poderes opostos se anulam e as letras respeitam os limites S e F.</p></section>
+  <section class="rules-card"><h2>✍️ Letra secreta e resposta</h2><p>Cada pessoa recebe uma letra aleatória; letras podem se repetir. Em até 2 minutos, escreva algo do tema que combine com sua letra e confirme. Para alterar, use o lápis e confirme novamente. Quando todos confirmarem, a discussão começa; ao acabar o tempo, vale a última resposta enviada, ou “sem resposta” se não houver uma.</p></section>
+  <section class="rules-card"><h2>⚡ Um poder por tema</h2><p>Depois da discussão, você pode subir ou descer uma posição se achar que o consenso ficou errado. Use para corrigir a decisão e ajudar o time. O poder pode ser usado uma única vez por tema e nunca na própria resposta. Você pode passar a vez e guardá-lo. Poderes opostos se anulam e as letras respeitam os limites S e F.</p></section>
   <section class="rules-card"><h2>❤️ Respostas favoritas</h2><p>Nas telas de resultados, curta todas as respostas que achar muito boas, engraçadas ou com as quais concorda 100%. Pode curtir várias, mas nunca a sua própria. Toque novamente para retirar a curtida.</p></section>
-  <section class="rules-card"><h2>🗳️ Escolha do tema</h2><p>Antes de cada rodada, todos votam em um dos 5 temas apresentados. Quando todos os jogadores conectados votarem, o mais votado vence; empates são decididos por sorteio entre os empatados. São 15 temas sorteados por partida, em 3 grupos de 5, sem repetir nenhuma sugestão. Uma nova partida reinicia o sorteio.</p></section>
+  <section class="rules-card"><h2>🗳️ Troca de tema</h2><p>Durante o envio das respostas, qualquer pessoa pode votar. O tema só muda quando mais da metade dos jogadores conectados votar a favor, inclusive o host. Isso limpa as respostas e reinicia os 2 minutos.</p></section>
   <section class="rules-card"><h2>🎯 Pontos e gênios</h2><p>Cravou: +3. Uma posição de diferença: +1. Duas: −1; três: −3; quatro: −5; cinco: −7. Em “Gênios das alterações 🧠”, cada poder é avaliado sozinho contra o consenso: +2 por aproximar uma posição, −2 por afastar e 0 se esbarrar no limite. As curtidas não alteram esses pontos.</p></section>
  </div><div class="help ready-status">${d.readyCount||0} de ${d.readyNeeded||0} jogadores prontos</div>
  <button class="btn btn-primary" id="btnReady" ${d.iReady?'disabled':''} onclick="send('ready')">${d.iReady?'✓ Pronto! Aguardando os demais':'Entendi, prosseguir com o jogo'}</button>`;
 }
-function renderVoting(d) {
- document.getElementById('gameContent').innerHTML=`<div class="round-label">Rodada ${d.round} de ${d.totalRounds||3}</div><h1 class="intro-title">Qual vai ser o tema? 🗳️</h1><p class="people">Escolha uma das 5 opções. O tema mais votado vence; em caso de empate, sorteamos entre os empatados.</p><div class="theme-options">${(d.themeOptions||[]).map((option,index)=>`<button class="btn theme-option" data-option="${index}" aria-pressed="${d.myThemeVote===option.theme}">${esc(option.theme)}<small>${option.votes} ${option.votes===1?'voto':'votos'}${d.myThemeVote===option.theme?' · Seu voto':''}</small></button>`).join('')}</div><p class="people" role="status">${d.votesCount||0} de ${d.votesNeeded||0} jogadores votaram${d.myThemeVote?' · Aguardando os demais':''}</p>`;
- document.querySelectorAll('.theme-option').forEach(button=>button.onclick=()=>send('voteTheme',{theme:d.themeOptions[Number(button.dataset.option)].theme,round:d.round}));
-}
-function bindSecretTier(tier) {
- const button=document.getElementById('secretTier');
- const hide=()=>{button.classList.remove('revealed');button.style.removeProperty('--secret-color');button.textContent='?';button.setAttribute('aria-label','Pressione e segure para ver sua nota secreta');};
- const reveal=()=>{if(!TIERS.includes(tier))return;button.classList.add('revealed');button.style.setProperty('--secret-color',`var(--tier-${tier.toLowerCase()})`);button.innerHTML=`<span>${esc(tier)}</span><small>${esc(TIER_NOTES[tier])}</small>`;button.setAttribute('aria-label',`Nota secreta ${tier}`);};
- button.onpointerdown=event=>{if(event.button!==0)return;event.preventDefault();button.setPointerCapture(event.pointerId);reveal();};
- for(const event of ['pointerup','pointercancel','pointerleave','lostpointercapture','blur'])button.addEventListener(event,hide);
- button.onkeydown=event=>{if(event.key===' '||event.key==='Enter'){event.preventDefault();reveal();}};
- button.onkeyup=event=>{if(event.key===' '||event.key==='Enter')hide();};
- button.oncontextmenu=event=>event.preventDefault();
- hide();
-}
-function hideSecretTier() {const button=document.getElementById('secretTier');if(button)button.dispatchEvent(new Event('pointercancel'));}
-window.addEventListener('blur',hideSecretTier);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)hideSecretTier();});
 function renderAnswering(d) {
  const key=`${d.code}:${d.round}:${d.revision}`;
  if(key!==draftKey) {draftKey=key;draft=d.myAnswer||'';saveSession();}
  document.getElementById('gameContent').innerHTML=`${heading(d)}
  <div class="board-image">${tierRows()}<div class="board-theme">Tema da vez: ${esc(d.currentTheme)}</div></div>
- <div style="text-align:center">Sua nota secreta:<button type="button" id="secretTier" class="secret-tier" aria-label="Pressione e segure para ver sua nota secreta">?</button><p class="people">Pressione e segure o quadrado para ver sua nota. Solte para esconder.</p></div>
+ <div style="text-align:center">Sua letra secreta:<br><div class="my-tier" style="background:var(--tier-${d.myTier.toLowerCase()})">${d.myTier}</div><div>${tierCaption(d.myTier)}</div></div>
  <div class="people">Autor: <strong>${esc(myState.name)}</strong> · Líder: <strong>${esc(d.myLeaderName)}</strong></div>
  <div class="timer" id="timer"></div>
  ${d.iAnswered?`<div class="submitted-answer"><span class="confirmation">✓ Resposta confirmada</span><p>${esc(d.myAnswer||draft)}</p><button class="edit-answer" id="btnEditAnswer" aria-label="Editar resposta" title="Editar resposta" onclick="editAnswer()">✏️</button></div><p class="people">Aguardando as confirmações dos demais.</p>`:'<textarea id="answerText" aria-label="Sua resposta" placeholder="Escreva sua resposta..." maxlength="100"></textarea><button class="btn btn-primary" id="btnAnswer">Confirmar resposta</button>'}
- `;
- bindSecretTier(d.myTier);
+ <div class="theme-vote"><button class="btn btn-secondary" onclick="send('changeTheme')" ${d.iVotedTheme?'disabled':''}>${d.iVotedTheme?'✓ Voto registrado':'🗳️ Votar para trocar tema'}</button><p class="people">${d.themeVotes} de ${d.themeVotesNeeded} votos necessários</p></div>`;
  if(!d.iAnswered) {
   const input=document.getElementById('answerText');input.value=draft;
   input.oninput=()=>{draft=input.value;saveSession();};
@@ -636,8 +608,8 @@ function renderDiscussing(d) {
 function renderPower(d) {
  const disabled=d.myUsedPower||d.iAmTarget||d.myPowerChosen;
  document.getElementById('gameContent').innerHTML=`${heading(d)}${people(d)}<div class="answer-card current-answer">${esc(d.discussingText)}</div><div class="grade">Nota escolhida${badge(d.placed)}</div>
- <div class="discussing-notice" role="status">${disabled?'Esperando resposta dos outros jogadores':'⚡ Sua decisão · Você tem 15 segundos'}</div>
- <div class="timer" id="timer"></div>${disabled?'':`<div class="power-options"><button class="power-btn up" onclick="send('power',{choice:1})">↑ Subir 1 tier</button><button class="power-btn" onclick="send('power',{choice:0})">Não fazer nada</button><button class="power-btn down" onclick="send('power',{choice:-1})">↓ Descer 1 tier</button></div>`}${board(d)}`;
+ <div class="discussing-notice">${d.iAmTarget?'🤫 Sua resposta':d.myPowerChosen?'✓ Decisão registrada':d.myUsedPower?'Poder já utilizado neste tema':'⚡ Sua decisão'}</div>
+ <div class="timer" id="timer"></div><div class="power-options"><button class="power-btn up" ${disabled?'disabled':''} onclick="send('power',{choice:1})">↑ Subir 1 tier</button><button class="power-btn" ${d.iAmTarget||d.myPowerChosen?'disabled':''} onclick="send('power',{choice:0})">Não fazer nada</button><button class="power-btn down" ${disabled?'disabled':''} onclick="send('power',{choice:-1})">↓ Descer 1 tier</button></div>${board(d)}`;
  startTimer(d.timerEnd);
 }
 function renderChanges(d) {
@@ -651,7 +623,7 @@ function likeButton(a,round) {
  const own=a.playerId===myState.myID || a.canLike===false;
  return `<button class="like-button ${a.myLiked?'liked':''}" ${own?'disabled':''} aria-label="${own?'Sua própria resposta':a.myLiked?'Retirar curtida':'Curtir resposta'} de ${esc(a.playerName)}" aria-pressed="${!!a.myLiked}" ${own?'title="Você não pode curtir sua própria resposta"':`onclick="send('like',{round:${round},playerID:'${esc(a.playerId)}'})"`}>${a.myLiked?'❤️':'♡'} <span>${a.likeCount||0}</span></button>`;
 }
-function resultRows(r,round=r.round||myState.round) {return r.answers.map(a=>{const pts=a.score??pointsFor(a.original,a.placed);return `<div class="review-row"><div><strong>${esc(a.playerName)}</strong><br><span class="answer-text">${esc(a.text)}</span>${a.leaderName?`<br><small>Líder: ${esc(a.leaderName)}</small>`:''}<div class="answer-reactions">${likeButton(a,round)}</div></div><div class="grade">Nota original${badge(a.original)}</div><div class="grade">Nota escolhida${badge(a.placed)}</div><strong class="${pts<0?'negative':'positive'}">${signed(pts)}</strong></div>`;}).join('');}
+function resultRows(r,round=r.round||myState.round) {return r.answers.map(a=>{const pts=a.score??pointsFor(a.original,a.placed);return `<div class="review-row"><div><strong>${esc(a.playerName)}</strong><br><span class="answer-text">${esc(a.text)}</span>${a.leaderName?`<br><small>Líder: ${esc(a.leaderName)}</small>`:''}<div class="answer-reactions">${likeButton(a,round)}</div></div><div class="grade">Nota escolhida${badge(a.placed)}</div><div class="grade">Nota original${badge(a.original)}</div><strong class="${pts<0?'negative':'positive'}">${signed(pts)}</strong></div>`;}).join('');}
 function renderReview(d) {
  const r=d.review;
  document.getElementById('gameContent').innerHTML=`${heading(d)}<div class="score-box"><div>Pontuação do grupo</div><div class="num ${r.score>=0?'positive':'negative'}">${signed(r.score)}</div></div>${resultRows(r,d.round)}${d.host?`<button class="btn btn-primary" onclick="send('nextRound')">${d.nextRound?'Próximo tema →':'Ver os gráficos da partida 📊'}</button>`:'<p class="people">Aguardando o host continuar.</p>'}`;
@@ -675,7 +647,7 @@ function renderFinal(d) {
  ${statsChart('🧠 Gênios das alterações',stats,'powerScore','Nenhum poder foi utilizado.')}
  <section class="stats-panel"><h2>❤️ As 5 respostas mais curtidas</h2>${popular.length?popular.map((a,i)=>`<div class="popular-answer"><span class="popular-position">${i+1}º</span><div><strong>${esc(a.text)}</strong><p>${esc(a.playerName)} · ${esc(a.theme)}</p></div>${likeButton(a,a.round)}</div>`).join(''):'<p class="people">Ainda não há curtidas. Escolha suas favoritas nas respostas abaixo!</p>'}</section>
  <section class="all-results"><h2>📝 Todas as respostas</h2>${results.map((r,i)=>`<h3>Rodada ${i+1} · ${esc(r.theme)} <span>${signed(r.score)} pontos</span></h3>${resultRows(r,i+1)}`).join('')}</section>
- ${d.host?'<button class="btn btn-secondary" id="btnRestart" onclick="send(\'restart\')">Jogar de novo na mesma sala</button>':'<p class="people" role="status">Vocês continuam na mesma sala. Aguardando o host iniciar uma nova partida.</p>'}`;
+ <button class="btn btn-secondary" onclick="leaveGame()">Jogar de novo</button>`;
 }
 
 function startTimer(end) {clearInterval(timerInterval); const tick=()=>{const el=document.getElementById('timer'); const seconds=Math.max(0,Math.ceil((end-Date.now())/1000)); if(el) el.textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;}; tick(); timerInterval=setInterval(tick,250);}

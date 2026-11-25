@@ -68,7 +68,11 @@ func TestKickedSessionCannotResume(t *testing.T) {
 	}
 }
 
-func TestVotedThemeStartsTwoMinutes(t *testing.T) {
- r:=testRoom(t)
- if remaining:=time.Until(r.TimerEnd);remaining<119*time.Second || remaining>120*time.Second {t.Fatal(remaining)}
+func TestThemeChangeRestartsTwoMinutes(t *testing.T) {
+	r := testRoom(t)
+	r.ChangeTheme("h")
+ r.ChangeTheme("a")
+	if remaining := time.Until(r.TimerEnd); remaining < 119*time.Second || remaining > 120*time.Second {
+		t.Fatal("theme change must also use 120 seconds", remaining)
+	}
 }

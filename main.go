@@ -270,11 +270,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			writeJSON(conn, map[string]string{"type": "pong"})
 		case "ready":
 			if room != nil { room.ReadyToPlay(playerID); broadcastView(room) }
-		case "voteTheme":
-			var vote struct { Theme string `json:"theme"`; Round int `json:"round"` }
-			if json.Unmarshal(msg.Data, &vote)==nil && room!=nil { room.VoteTheme(playerID,vote.Theme,vote.Round); broadcastView(room) }
-		case "restart":
-			if room!=nil && room.Restart(playerID) { broadcastView(room) }
 		case "editAnswer":
 			if room != nil { room.EditAnswer(playerID); broadcastView(room) }
 		case "like":
@@ -349,6 +344,11 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 					writeJSON(kicked, map[string]string{"error": "removido"})
 					kicked.Close()
 				}
+				broadcastView(room)
+			}
+		case "changeTheme":
+			if room != nil {
+				room.ChangeTheme(playerID)
 				broadcastView(room)
 			}
 		}

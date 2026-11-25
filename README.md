@@ -16,13 +16,17 @@ Acesse `http://localhost:8080`.
 ## Regras e interface
 
 - Rankings: S, A, B, C, E (azul) e F (roxo).
-- Três temas por partida, escolhidos aleatoriamente entre os temas cadastrados; o tema atual é excluído do próximo sorteio.
-- Respostas: 120 segundos (2:00), inclusive após trocar o tema. Poderes: 30 segundos. Resumo dos poderes: 10 segundos ou avanço pelo host.
-- A troca de tema exige maioria absoluta dos jogadores conectados, inclusive quando o voto vem do host. A troca limpa as respostas e reinicia o tempo, mantendo as letras.
+- Três rodadas por partida. No início, são sorteados 15 temas distintos da lista atualizada: antes de cada rodada, todos os jogadores conectados votam em um grupo de 5 opções. O mais votado vence; empates são sorteados entre os empatados. Nenhuma sugestão se repete na mesma partida.
+- Respostas: 120 segundos (2:00). Poderes: 15 segundos. Resumo dos poderes: 10 segundos ou avanço pelo host.
+- A votação termina quando todos os jogadores conectados votam. É possível alterar o voto enquanto estiver aberta; desconectar remove o voto da contagem. O host não escolhe sozinho nem troca o tema durante as respostas.
 - Cada letra é sorteada independentemente para cada jogador. Todos devem confirmar a tela de instruções antes da partida.
 - Na revisão, é possível curtir respostas de outras pessoas. O resultado final mostra as rodadas, pontos das respostas, curtidas e contribuição individual dos poderes.
-- Cada jogador pode usar um poder por tema. Subidas e descidas se anulam antes de aplicar os limites S/F.
+- A nota secreta aparece apenas enquanto o quadrado é pressionado com mouse, toque ou teclado. Ao soltar ou sair da janela, volta ao ponto de interrogação.
+- As comparações mostram a nota original à esquerda e a escolhida à direita; após poderes, mostram antes à esquerda e depois à direita.
+- Cada jogador pode usar um poder por tema; quem já usou aguarda os outros automaticamente. Subidas e descidas se anulam antes de aplicar os limites S/F.
 - O host pode remover jogadores no lobby. Ao desconectar, o participante conectado mais antigo assume.
+
+Ao terminar, todos permanecem na mesma sala. O host pode usar “Jogar de novo na mesma sala” para voltar ao lobby com os mesmos jogadores e credenciais; o próximo início sorteia 15 temas novamente e zera os resultados e poderes.
 
 ## Retorno à sala
 
@@ -56,6 +60,8 @@ O teste de interface foi executado com Playwright e Chrome. Para repetir, dispon
 ```bash
 node tests/interface.cjs
 node tests/reconnect.cjs
+node tests/new-rules.cjs
+node tests/requested-updates.cjs
 ```
 
 Use `CHROME_PATH` para indicar um Chrome local, ou instale o Chromium do Playwright. O teste verifica rascunho e cursor, cores, seis rankings, plaquinhas, poderes, notas e layout móvel.

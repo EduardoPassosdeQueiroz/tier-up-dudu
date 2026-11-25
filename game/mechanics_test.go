@@ -23,7 +23,8 @@ func TestInstructionsRequireEveryConfirmation(t *testing.T) {
 	r.Disconnect("b")
 	if r.Phase != PhaseInstructions { t.Fatal("disconnect bypassed confirmation") }
 	r.SetSession("b", "b-token"); r.Resume("b-token")
-	if !r.ReadyToPlay("b") || r.Phase != PhaseAnswering || r.Round != 1 { t.Fatal("last confirmation failed to start") }
+	if !r.ReadyToPlay("b") || r.Phase != PhaseVoting || r.Round != 1 { t.Fatal("last confirmation failed to start") }
+	chooseTheme(t,r)
 	if remaining:=time.Until(r.TimerEnd); remaining<119*time.Second || remaining>120*time.Second { t.Fatal(remaining) }
 	if r.ReadyToPlay("b") { t.Fatal("ready accepted outside instructions") }
 }
@@ -97,12 +98,9 @@ func TestIndependentTierDrawsPermitRepeatsWithSixPlayers(t *testing.T) {
 	t.Fatal("draws appear to enforce unique letters")
 }
 
-func TestHostNeedsMajorityAndLeavingInvalidatesSession(t *testing.T) {
-	r:=testRoom(t);theme:=r.CurrentTheme
-	r.ChangeTheme("h");if r.CurrentTheme!=theme {t.Fatal("host bypassed vote")}
-	r.ChangeTheme("h");if len(r.ThemeVotes)!=1 {t.Fatal("duplicate vote counted")}
-	r.ChangeTheme("a");if r.CurrentTheme==theme {t.Fatal("majority did not change theme")}
-	r.SetSession("h","private-token");r.Leave("h")
-	if id,_:=r.Resume("private-token");id!="" {t.Fatal("left session resumed")}
-	if !r.IsHost("a") {t.Fatal("host not transferred on leave")}
+func TestLeavingInvalidatesSession(t *testing.T) {
+ r:=testRoom(t)
+ r.SetSession("h","private-token");r.Leave("h")
+ if id,_:=r.Resume("private-token");id!="" {t.Fatal("left session resumed")}
+ if !r.IsHost("a") {t.Fatal("host not transferred on leave")}
 }

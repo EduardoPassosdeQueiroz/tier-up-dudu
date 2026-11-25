@@ -49,6 +49,7 @@ type Phase string
 const (
 	PhaseLobby        Phase = "lobby"
 	PhaseInstructions Phase = "instructions"
+	PhaseVoting       Phase = "voting"
 	PhaseAnswering    Phase = "answering"
 	PhaseDiscussing   Phase = "discussing"
 	PhasePower        Phase = "power"
@@ -104,6 +105,9 @@ type Room struct {
 	Round        int
 	UsedThemes   []string
 	CurrentTheme string
+	MatchThemes  []string
+	ThemeOptions []string
+	Votes        map[string]string
 
 	Answers    []*AnswerEntry
 	Discussion []int
@@ -113,7 +117,6 @@ type Room struct {
 
 	ReadyState map[string]bool
  IntroPlayers map[string]bool
- ThemeVotes map[string]bool
  Revision int
  Changes []map[string]any
  Results []*RoundResult
@@ -195,89 +198,80 @@ func (r *Room) assignTiers() {
 }
 
 var Themes = []string{
-	"Comidas típicas de Natal",
-	"Frutas tropicais",
-	"Doces/Salgados de aniversário",
-	"Comidas de festa junina",
+	"Comidas de feriados (Natal, Festa Junina, etc.)",
+	"Frutas",
 	"Sabores de pizza",
 	"Bebidas",
-	"Sobremesas com chocolate",
-	"Animais marinhos",
-	"Animais de fazenda",
+	"Sobremesas",
+	"Um animal para ter como pet",
 	"Animais extintos",
 	"Insetos",
 	"Vilões",
 	"Ele(a) é um 10 mas...",
 	"Tóxico em uma relação (S) ou normal (F)",
-	"Matérias escolares",
 	"Personagens da Marvel/DC",
-	"Youtuberes",
-	"Personagens que dão mais medo em filmes",
-	"Séries",
+	"Youtubers",
+	"Séries de streamings",
 	"Personagens com mais aura",
 	"Personagens de séries de TV Aberta",
 	"Filmes de animação",
 	"Lugares para se esconder num esconde-esconde mortal",
 	"Lugares para passar a lua de mel",
-	"Lugares para levar alguém em um primeiro encontro horrível",
+	"Lugares para levar alguém em um primeiro encontro",
 	"Melhores pontos turísticos",
 	"Lugar para você dormir",
 	"Personagens de Clash Royale",
 	"Melhores Mobs de Minecraft",
 	"Jogos de tabuleiro",
-	"Jogos On-line",
-	"Melhores personagens fictícios",
+	"Jogos On-line ou de Videogame",
 	"Coisas que você levaria para sobreviver em uma ilha deserta",
-	"Coisas que seriam suspeitas de encontrar no porta-malas de um carro",
+	"Coisas que seriam suspeitas/estranhas de encontrar no porta-malas de um carro",
 	"Objetos que seriam valiosos após o fim do mundo",
-	"Desculpas para chegar atrasado",
-	"Coisas que não se deve falar em um casamento",
-	"Motivos para terminar um namoro",
+	"Desculpas para chegar atrasado (S - Válida ou Absurda / F - Impossível de acreditar ou Muito básica)",
+	"Coisas que não se deve falar em um casamento sendo um noivo(a)",
 	"Objetos que podem machucar se caírem na sua cabeça",
-	"Presentes ruins de aniversário",
-	"Coisas que você não deveria pesquisar no Google",
-	"Jogadores brasileiros de futebol",
+	"Presentes de aniversário (sua opinião)",
+	"O que você não deveria pesquisar no Google na conta da sua mãe",
+	"Jogadores de futebol (hoje em dia)",
 	"Maiores times do Brasil",
 	"Melhores esportes olímpicos de se jogar",
-	"Celebridade que você não deixaria cuidar do seu filho",
+	"Alguém que você deixaria cuidar do seu filho",
 	"Você ganharia desse cara numa luta?",
 	"Bandas e Cantores",
 	"Super-poderes",
 	"Invenções que não deveriam existir",
-	"Invenções que mudaram o mundo",
+	"Invenções que vocês gostariam que fossem suas",
 	"Órgãos do corpo humano",
-	"Objetos atuais que assustariam pessoas da Idade Média",
-	"O que você faria se pudesse parar o tempo",
+	"Objetos atuais que assustariam pessoas da Idade da Pedra",
+	"O que você faria se pudesse parar o tempo por 1 mês",
 	"Coisas que você faria se pudesse viajar no tempo",
-	"Objetos de cozinha mais úteis",
-	"Materiais escolares",
-	"É trair (S) ou não (F)",
-	"Tratamento de princesa (S) ou mínimo",
+	"Objetos/Eletrodomésticos de cozinha mais úteis",
+	"Materiais escolares mais úteis",
+	"Termina (S) ou dá uma segunda chance (F)",
+	"Tratamento de princesa (S) ou mínimo (F)",
 	"Conhecidos bonitos (quem namora não discute)",
 	"Red Flag (S) e Green Flag (F)",
 	"Motivo de orgulho (S) ou vergonha (F)",
 	"Melhores profissões (desconsidere salário)",
-	"Coisas que custam mais de R$ 1 milhão",
+	"Melhores coisas que custam mais de R$ 1 milhão",
 	"Coisas que seriam úteis em um apocalipse zumbi",
-	"Coisas que podem causar o fim da humanidade",
+	"Coisas que mais poderiam causar o fim da humanidade",
 	"Personagens de animação mais atraentes",
-	"Café da manhã",
+	"Comidas de café da manhã",
 	"Sabores de sorvete",
-	"Trends da história do tiktok",
+	"Trends da história do TikTok",
 	"Atitudes atraentes",
-	"Sub-celebridades",
-}
-
-func (r *Room) pickTheme() string {
-	// Every theme has the same chance. Only the current theme is excluded so
-	// a successful change always produces a visible change.
-	available := make([]string, 0, len(Themes))
-	for _, theme := range Themes {
-		if theme != r.CurrentTheme {
-			available = append(available, theme)
-		}
-	}
-	return available[rand.Intn(len(available))]
+	"Celebridade (S) ou sub-celebridades (F)",
+	"Como você terminaria com alguém sem machucar essa pessoa",
+	"Melhores emojis",
+	"Animais que você ganharia na luta",
+	"Melhor fazer sozinho (S) ou melhor fazer com outras pessoas (F)",
+	"Animais que você mais gostaria de ser",
+	"Dia da semana e horário (4 da tarde de uma terça)",
+	"Exige sorte (S) ou exige habilidade (F)",
+	"Comida típica do Brasil",
+	"Imperdoável (S) ou Perdoável (F)",
+	"Uma idade ideal que você gostaria de ver seu filho namorando",
 }
 
 func (r *Room) StartRound(requesterID string) bool {
@@ -287,6 +281,7 @@ func (r *Room) StartRound(requesterID string) bool {
  if p==nil || p.Left || !p.Connected || !p.Host { return false }
  if r.Phase==PhaseLobby {
   if r.connectedCountLocked()<3 {return false}
+  r.prepareThemesLocked()
   r.ReadyState=map[string]bool{}
   r.IntroPlayers=map[string]bool{}
   for id,p:=range r.Players {if p.Connected && !p.Left {r.IntroPlayers[id]=true}}
@@ -302,16 +297,17 @@ func (r *Room) StartRound(requesterID string) bool {
 func (r *Room) startRoundLocked() {
  r.Round++
  r.Revision++
- r.ThemeVotes=map[string]bool{}
  r.Changes=nil
- r.CurrentTheme=r.pickTheme()
- r.UsedThemes=append(r.UsedThemes,r.CurrentTheme)
+ r.CurrentTheme=""
+ start := (r.Round-1)*5
+ r.ThemeOptions=append([]string(nil),r.MatchThemes[start:start+5]...)
+ r.UsedThemes=append(r.UsedThemes,r.ThemeOptions...)
+ r.Votes=map[string]string{}
  r.Answers=nil
  r.Discussion=nil
  r.DiscIdx=0
- r.assignTiers()
- r.Phase=PhaseAnswering
- r.TimerEnd=time.Now().Add(AnswerDuration)
+ r.Phase=PhaseVoting
+ r.TimerEnd=time.Time{}
 }
 
 func (r *Room) SubmitAnswer(playerID, text string) bool {
@@ -432,13 +428,14 @@ func (r *Room) JudgePlace(judgeID string, tier Tier) bool {
 	entry.PlacedSet = true
 	for _, p := range r.Players {
 		p.PowerChoice = 0
-		p.powerChosen = false
+		p.powerChosen = p.UsedPower || !p.Connected || p.Left
 	}
 	// O autor da resposta em discussão não participa desta decisão de poder.
 	// Marcamos como resolvido para não bloquear o avanço antecipado da fase.
 	r.Players[entry.PlayerID].powerChosen = true
 	r.Phase = PhasePower
-	r.TimerEnd = time.Now().Add(30 * time.Second)
+	r.TimerEnd = time.Now().Add(15 * time.Second)
+	if r.allPowersLocked() { r.applyPowersLocked() }
 	return true
 }
 
@@ -545,24 +542,6 @@ func (r *Room) finishRoundLocked() {
 	})
 }
 
-func (r *Room) ChangeTheme(requesterID string) {
- r.mu.Lock(); defer r.mu.Unlock()
- p:=r.Players[requesterID]
- if p==nil || !p.Connected || r.Phase!=PhaseAnswering { return }
- if r.ThemeVotes==nil { r.ThemeVotes=map[string]bool{} }
- r.ThemeVotes[requesterID]=true
- if len(r.ThemeVotes)<=r.connectedCountLocked()/2 { return }
- r.changeThemeLocked()
-}
-func (r *Room) changeThemeLocked() {
- r.CurrentTheme=r.pickTheme()
- r.UsedThemes=append(r.UsedThemes,r.CurrentTheme)
- r.ThemeVotes=map[string]bool{}
- r.Revision++
- r.Answers=nil
- for _, p:=range r.Players { p.Answer=""; p.Answered=false }
- r.TimerEnd=time.Now().Add(AnswerDuration)
-}
 func (r *Room) connectedCountLocked() int {
 	n := 0
 	for _, p := range r.Players {
@@ -601,13 +580,12 @@ func (r *Room) removeLobbyPlayerLocked(id string) {
 func (r *Room) Disconnect(id string) {
  r.mu.Lock(); defer r.mu.Unlock()
  p:=r.Players[id]; if p==nil { return }; wasHost:=p.Host; p.Connected=false; p.Host=false
- delete(r.ThemeVotes,id)
+ delete(r.Votes,id)
  if wasHost { for _,pid:=range r.Order { if next:=r.Players[pid]; next.Connected { next.Host=true; break } } }
  if r.connectedCountLocked()==0 { return }
  if r.Phase==PhaseInstructions {r.beginWhenReadyLocked()}
- if r.Phase==PhaseAnswering {
- if len(r.ThemeVotes)>r.connectedCountLocked()/2 { r.changeThemeLocked() } else if r.allAnsweredLocked() { r.beginDiscussionLocked() }
- }
+ if r.Phase==PhaseVoting {r.finishVotingLocked()}
+ if r.Phase==PhaseAnswering && r.allAnsweredLocked() { r.beginDiscussionLocked() }
  if r.Phase==PhasePower && r.allPowersLocked() { r.applyPowersLocked() }
 }
 
@@ -636,10 +614,22 @@ func (r *Room) ViewForPlayer(playerID string) (result map[string]any) {
 		"canStart": p.Host && r.connectedCountLocked() >= 3,
  "totalRounds":TotalRounds,
  "host": p.Host, "myID": playerID, "revision":r.Revision,
- "themeVotes":len(r.ThemeVotes), "themeVotesNeeded":r.connectedCountLocked()/2+1, "iVotedTheme":r.ThemeVotes[playerID],
 	}
 
 	if r.Phase == PhaseLobby { return view }
+ if r.Phase == PhaseVoting {
+  options:=[]map[string]any{}
+  for _,theme:=range r.ThemeOptions {
+   count:=0
+   for id,vote:=range r.Votes {if voter:=r.Players[id];voter!=nil && voter.Connected && !voter.Left && vote==theme {count++}}
+   options=append(options,map[string]any{"theme":theme,"votes":count})
+  }
+  view["themeOptions"]=options
+  view["myThemeVote"]=r.Votes[playerID]
+  view["votesCount"]=len(r.Votes)
+  view["votesNeeded"]=r.connectedCountLocked()
+  return view
+ }
  if r.Phase == PhaseInstructions {
   ready,needed:=0,0;for id:=range r.IntroPlayers {if p:=r.Players[id];p!=nil && !p.Left {needed++;if r.ReadyState[id] {ready++}}}
   view["readyCount"]=ready

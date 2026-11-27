@@ -18,7 +18,19 @@ func testRoom(t *testing.T) *Room {
 	for _, id := range r.Order {
 		r.Ready(id)
 	}
+	finishThemeVote(t, r)
 	return r
+}
+func finishThemeVote(t *testing.T, r *Room) {
+	t.Helper()
+	if r.Phase != PhaseThemeVote || len(r.ThemeOptions) != 5 {
+		t.Fatal("expected theme vote", r.Phase)
+	}
+	theme := r.ThemeOptions[0]
+	for _, id := range r.Order {
+		if r.Players[id].Connected { r.SubmitThemeVote(id, theme) }
+	}
+	if r.Phase != PhaseAnswering || r.CurrentTheme != theme { t.Fatal("theme vote did not start answering") }
 }
 func discussionRoom(t *testing.T) *Room {
 	r := testRoom(t)
@@ -36,32 +48,8 @@ func TestThemeVotesAndTiming(t *testing.T) {
 		t.Fatal(left)
 	}
 	r.SubmitAnswer("h", "rascunho confirmado")
-	r.ChangeTheme("a")
-	r.ChangeTheme("a")
-	if r.CurrentTheme != initial {
-		t.Fatal("duplicate vote changed theme")
-	}
-	r.ChangeTheme("b")
-	if r.CurrentTheme == initial || r.Revision != rev+1 || len(r.Answers) != 0 || r.Players["h"].Answered {
-		t.Fatal("majority did not reset theme")
-	}
-	previous := r.CurrentTheme
-	r.ChangeTheme("h")
-	if r.CurrentTheme != previous {
-		t.Fatal("host changed without majority")
-	}
-	r.ChangeTheme("a")
-	if r.CurrentTheme == previous {
-		t.Fatal("majority did not change theme")
-	}
-	r.AdvanceExpired(r.TimerEnd)
-	previous = r.CurrentTheme
-	r.ChangeTheme("h")
-	if r.CurrentTheme != previous {
-		t.Fatal("changed outside answering")
-	}
-	if len(Themes) != 71 {
-		t.Fatal(len(Themes))
+	if r.SubmitThemeVote("a", r.ThemeOptions[1]) || r.CurrentTheme != initial || r.Revision != rev {
+		t.Fatal("theme changed outside voting")
 	}
 }
 func TestPowersCancelAtEveryTier(t *testing.T) {
@@ -72,7 +60,7 @@ func TestPowersCancelAtEveryTier(t *testing.T) {
 			if !r.JudgePlace(judge, tier) {
 				t.Fatal("judge failed")
 			}
-			if left := time.Until(r.TimerEnd); left < 29*time.Second || left > 30*time.Second {
+			if left := time.Until(r.TimerEnd); left < 14*time.Second || left > 15*time.Second {
 				t.Fatal(left)
 			}
 			choice := 1
@@ -186,6 +174,7 @@ func TestSecretAndValidation(t *testing.T) {
 func TestThreeRoundsReachFinal(t *testing.T) {
 	r := testRoom(t)
 	for round := 1; round <= 3; round++ {
+		if r.Phase == PhaseThemeVote { finishThemeVote(t, r) }
 		r.AdvanceExpired(r.TimerEnd)
 		for r.Phase == PhaseDiscussing {
 			_, judge := r.CurrentDiscussion()
@@ -219,6 +208,7 @@ func TestNewRules(t *testing.T) {
 		t.Fatal("started before everyone ready")
 	}
 	r.Ready("b")
+	finishThemeVote(t, r)
 	r.SubmitAnswer("h", "primeira")
 	r.EditAnswer("h")
 	if r.Players["h"].Answered || len(r.Answers) != 0 {
@@ -264,21 +254,39 @@ func TestGeniusDoesNotChangeWhenOriginalAlreadyCorrect(t *testing.T) {
 		t.Fatal("power on an already correct answer must not change individual score")
 	}
 }
-func TestThemeDrawCanReuseEarlierThemes(t *testing.T) {
+func TestThemeSuggestionsDoNotRepeat(t *testing.T) {
 	r := NewRoom("TEST")
-	r.CurrentTheme = Themes[0]
-	r.UsedThemes = append([]string(nil), Themes...)
+	r.prepareThemeDeckLocked()
 	seen := map[string]bool{}
-	for i := 0; i < 500; i++ {
-		theme := r.pickTheme()
-		if theme == r.CurrentTheme {
-			t.Fatal("theme change repeated current theme")
+	for round := 1; round <= 3; round++ {
+		r.Round = round
+		r.beginThemeVoteLocked()
+		for _, theme := range r.ThemeOptions {
+			if seen[theme] { t.Fatal("theme suggestion repeated") }
+			seen[theme] = true
 		}
-		seen[theme] = true
 	}
-	if len(seen) < 2 {
-		t.Fatal("draw did not select among earlier themes")
+	if len(seen) != 15 {
+		t.Fatal("expected fifteen unique suggestions")
 	}
+}
+
+func TestDisconnectDuringThemeVoteResolvesRemainingVotes(t *testing.T) {
+	r := NewRoom("TEST")
+	for _, id := range []string{"h", "a", "b"} { r.AddPlayer(id, id, id == "h") }
+	r.StartRound("h")
+	for _, id := range r.Order { r.Ready(id) }
+	theme := r.ThemeOptions[0]
+	r.SubmitThemeVote("h", theme)
+	r.SubmitThemeVote("a", theme)
+	if r.Phase != PhaseThemeVote { t.Fatal("voting ended early") }
+	r.Disconnect("b")
+	if r.Phase != PhaseAnswering || r.CurrentTheme != theme { t.Fatal("remaining votes did not resolve") }
+	deadline, revision := r.TimerEnd, r.Revision
+	r.SubmitAnswer("h", "Resposta")
+	r.Disconnect("a")
+	if r.Phase != PhaseDiscussing || r.CurrentTheme != theme || r.Revision != revision { t.Fatal("disconnect changed the chosen theme") }
+	if deadline.IsZero() { t.Fatal("answering did not start a timer") }
 }
 
 func TestDuplicatePlayerNames(t *testing.T) {

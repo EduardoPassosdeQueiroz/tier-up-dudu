@@ -728,12 +728,11 @@ func (r *Room) Disconnect(id string) {
 	if r.Phase == PhaseInstructions && r.readyCountLocked() == r.connectedCountLocked() {
 		r.startFirstRoundLocked()
 	}
-	if r.Phase == PhaseAnswering {
-		if len(r.ThemeVotes) > r.connectedCountLocked()/2 {
-			r.changeThemeLocked()
-		} else if r.allAnsweredLocked() {
-			r.beginDiscussionLocked()
-		}
+	if r.Phase == PhaseThemeVote && len(r.ThemeVotes) == r.connectedCountLocked() {
+		r.resolveThemeVoteLocked()
+	}
+	if r.Phase == PhaseAnswering && r.allAnsweredLocked() {
+		r.beginDiscussionLocked()
 	}
 	if r.Phase == PhasePower && r.allPowersLocked() {
 		r.applyPowersLocked()

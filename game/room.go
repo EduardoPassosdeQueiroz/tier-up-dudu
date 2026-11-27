@@ -109,6 +109,7 @@ type Room struct {
 
 	// ID do jogador -> tema escolhido.
 	ThemeVotes map[string]string
+	ThemeVoteDrafts map[string]string
 
 	Answers    []*AnswerEntry
 	Discussion []int
@@ -302,6 +303,7 @@ func (r *Room) beginThemeVoteLocked() {
     )
 
     r.ThemeVotes = make(map[string]string)
+    r.ThemeVoteDrafts = make(map[string]string)
     r.CurrentTheme = ""
     r.Answers = nil
     r.Discussion = nil
@@ -341,6 +343,7 @@ func (r *Room) SubmitThemeVote(playerID, theme string) bool {
     }
 
     r.ThemeVotes[playerID] = theme
+    r.ThemeVoteDrafts[playerID] = theme
 
     if len(r.ThemeVotes) == r.connectedCountLocked() {
         r.resolveThemeVoteLocked()
@@ -348,6 +351,17 @@ func (r *Room) SubmitThemeVote(playerID, theme string) bool {
     }
 
     return false
+}
+
+func (r *Room) EditThemeVote(playerID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	p := r.Players[playerID]
+	if p == nil || !p.Connected || r.Phase != PhaseThemeVote || r.ThemeVotes[playerID] == "" {
+		return false
+	}
+	delete(r.ThemeVotes, playerID)
+	return true
 }
 
 func (r *Room) resolveThemeVoteLocked() {
@@ -765,14 +779,10 @@ func (r *Room) ViewForPlayer(playerID string) (result map[string]any) {
 		"ready":        p.Ready,
 		"host":         p.Host, "myID": playerID, "revision": r.Revision,
 		"themeOptions":     r.ThemeOptions,
-		"themeVoteCounts":  r.themeVoteCountsLocked(),
 		"myThemeVote":      r.ThemeVotes[playerID],
-		"themeVotes":       len(r.ThemeVotes),
-		"themeVotesNeeded": r.connectedCountLocked(),
+		"myThemeVoteDraft": r.ThemeVoteDrafts[playerID],
 	}
 
-	// Durante a votação de tema, o jogador recebe apenas as opções e a contagem
-	// de votos. Nada de respostas, tabuleiro ou informações de rodada.
 	if r.Phase == PhaseThemeVote {
 		return view
 	}
@@ -853,16 +863,6 @@ func (r *Room) playersSummary() []map[string]any {
 		})
 	}
 	return list
-}
-
-func (r *Room) themeVoteCountsLocked() map[string]int {
-	counts := make(map[string]int)
-
-	for _, theme := range r.ThemeVotes {
-		counts[theme]++
-	}
-
-	return counts
 }
 
 func ScoreDiff(original, placed Tier) int {
@@ -987,6 +987,7 @@ func (r *Room) ReturnToLobby(requesterID string) bool {
     r.CurrentTheme = ""
 
     r.ThemeVotes = nil
+    r.ThemeVoteDrafts = nil
     r.Answers = nil
     r.Discussion = nil
     r.DiscIdx = 0

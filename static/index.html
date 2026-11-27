@@ -446,6 +446,11 @@ input:focus, textarea:focus, button:focus-visible { outline:3px solid #ffd381; o
     transform: translateY(-2px);
 }
 
+.theme-option[aria-pressed="true"] {
+    border-color: var(--tier-a);
+    box-shadow: 0 0 0 2px #fb8c0033;
+}
+
 .theme-option:disabled {
     opacity: .7;
     cursor: default;
@@ -534,6 +539,7 @@ const TIERS=['S','A','B','C','E','F'];
 const LABELS={S:'Lendários',A:'Excelentes',B:'Bons',C:'Mais ou menos',E:'Ruim',F:'Desastrosos'};
 const NOTES={S:'10',A:'9 e 8',B:'7 e 6,5',C:'6,5 e 5',E:'4, 3 e 2',F:'1 e 0'};
 let ws, myState={}, timerInterval, draftKey='', draft='';
+let themeVoteDraftKey='', themeVoteDraft='';
 const SESSION_KEY='tier-du-session-v1';
 let session=null, reconnectTimer, reconnectAttempt=0, heartbeatInterval, lastMessageAt=0, awaitingState=false;
 function readSession() {
@@ -543,6 +549,7 @@ function saveSession() {
  if(!session) return;
  session.snapshot=myState.phase?myState:session.snapshot;
  session.draftKey=draftKey; session.draft=draft;
+ session.themeVoteDraftKey=themeVoteDraftKey; session.themeVoteDraft=themeVoteDraft;
  const value=JSON.stringify(session);
  try {sessionStorage.setItem(SESSION_KEY,value);} catch {}
  try {localStorage.setItem(SESSION_KEY,value);} catch {}
@@ -648,8 +655,15 @@ function people(d) {return `<div class="people">Resposta de <strong>${esc(d.disc
 function badge(t) {return `<div class="tier-badge" role="img" aria-label="Nota ${esc(t)}" style="background:var(--tier-${String(t).toLowerCase()});${t==='B'?'color:#29220a':''}">${esc(t)}</div>`;}
 function board(d) {return TIERS.map(t=>`<div class="tier-row ${t.toLowerCase()}"><div class="tier-label ${t.toLowerCase()}">${t}</div><div>${(d.board||[]).filter(a=>a.placed===t).map(a=>`<div class="answer-card"><strong>${esc(a.playerName)}</strong>${esc(a.text)}</div>`).join('')}</div></div>`).join('');}
 function renderThemeVote(d) {
-    const counts = d.themeVoteCounts || {};
+    const key = `${d.code}:${d.round}:${d.revision}`;
+    if (themeVoteDraftKey !== key) {
+        themeVoteDraftKey = key;
+        themeVoteDraft = d.myThemeVote || d.myThemeVoteDraft || '';
+    }
+    if (d.myThemeVote) themeVoteDraft = d.myThemeVote;
+    if (!(d.themeOptions || []).includes(themeVoteDraft)) themeVoteDraft = '';
     const voted = !!d.myThemeVote;
+    saveSession();
 
     document.getElementById('gameContent').innerHTML = `
         <div class="round-label">Rodada ${d.round} de 3</div>
@@ -662,22 +676,25 @@ function renderThemeVote(d) {
         </header>
 
         <div class="help">
-            Todos devem escolher um dos cinco temas.
+            Escolha um dos cinco temas e confirme seu voto.
+            Os votos são anônimos e a contagem fica oculta.
             O mais votado será utilizado nesta rodada.
             Em caso de empate, um dos empatados será sorteado.
+            Você pode editar enquanto a votação estiver aberta.
         </div>
 
         <div class="theme-options">
             ${(d.themeOptions || []).map((theme, i) => `
                 <button
                     class="theme-option"
+                    type="button"
+                    data-theme-index="${i}"
+                    aria-pressed="${themeVoteDraft === theme}"
                     ${voted ? 'disabled' : ''}
-                    onclick="send('voteTheme',{theme:${JSON.stringify(theme)}})"
                 >
                     <span>${esc(theme)}</span>
-                    <strong>${counts[theme] || 0} votos</strong>
-                    ${d.myThemeVote === theme
-                        ? '<span>Seu voto</span>'
+                    ${themeVoteDraft === theme
+                        ? `<span>${voted ? 'Seu voto' : 'Selecionado'}</span>`
                         : ''}
                 </button>
             `).join('')}
@@ -685,14 +702,29 @@ function renderThemeVote(d) {
 
         <div class="discussing-notice">
             ${voted
-                ? 'Seu voto foi registrado. Aguardando os outros jogadores.'
-                : 'Escolha um dos cinco temas para continuar.'}
+                ? 'Seu voto foi confirmado. Aguardando os outros jogadores.'
+                : themeVoteDraft ? 'Tema selecionado. Confirme seu voto para continuar.' : 'Escolha um dos cinco temas para continuar.'}
         </div>
 
-        <p class="people">
-            ${d.themeVotes} de ${d.themeVotesNeeded} jogadores votaram.
-        </p>
+        ${voted
+            ? '<button class="btn btn-secondary" id="btnEditThemeVote" type="button">Editar voto</button>'
+            : `<button class="btn btn-primary" id="btnConfirmThemeVote" type="button" ${themeVoteDraft ? '' : 'disabled'}>Confirmar voto</button>`}
     `;
+    document.querySelectorAll('.theme-option').forEach(button => {
+        button.onclick = () => {
+            if (voted) return;
+            themeVoteDraft = d.themeOptions[Number(button.dataset.themeIndex)];
+            renderThemeVote(d);
+        };
+    });
+    const confirm = document.getElementById('btnConfirmThemeVote');
+    if (confirm) confirm.onclick = () => {
+        if (!themeVoteDraft) return;
+        confirm.disabled = true;
+        send('voteTheme', {theme:themeVoteDraft});
+    };
+    const edit = document.getElementById('btnEditThemeVote');
+    if (edit) edit.onclick = () => { edit.disabled = true; send('editThemeVote'); };
 }
 function renderAnswering(d) {
  const key=`${d.code}:${d.round}:${d.revision}`;
@@ -738,7 +770,7 @@ function renderChanges(d) {
 }
 function resultRows(r,round,showLikes=false) {return r.answers.map(a=>{const diff=Math.abs(TIERS.indexOf(a.original)-TIERS.indexOf(a.placed)),pts=diff===0?3:diff===1?1:3-2*diff; return `<div class="review-row"><div><strong>${esc(a.playerName)}</strong><br><span style="color:var(--muted)">${esc(a.text)}</span>${a.leaderName?`<br><small>Líder: ${esc(a.leaderName)}</small>`:''}</div><div class="grade">Nota original${badge(a.original)}</div><div class="grade">Nota escolhida${badge(a.placed)}</div><button class="kick" ${a.playerId===myState.myID?'disabled':''} onclick="send('like',{round:${round},owner:'${a.playerId}'})">${a.likes?.[myState.myID]?'❤️':'🤍'}${showLikes?` ${Object.keys(a.likes||{}).length}`:''}</button><strong>${pts>0?'+':''}${pts}</strong></div>`;}).join('');}
 function renderReview(d) {const r=d.review; document.getElementById('gameContent').innerHTML=`${heading(d)}<div class="score-box"><div>Pontuação do grupo</div><div class="num ${r.score>=0?'positive':'negative'}">${r.score>0?'+':''}${r.score}</div></div>${resultRows(r,d.round-1)}${d.host?`<button class="btn btn-primary" onclick="send('nextRound')">${d.nextRound?'Próximo tema →':'Ver resultado final'}</button>`:'<p class="help">Aguardando o host continuar.</p>'}`;}
-function renderInstructions(d) { document.getElementById('gameContent').innerHTML=`<h1>Como jogar 🎮</h1><div class="help"><p>Todos formam um time e tentam acertar a letra secreta de cada resposta.</p><p>Cada jogador recebe uma letra e escreve uma resposta que combine com ela. Quando sua resposta estiver em discussão, fique em silêncio e não demonstre sua letra.</p><p>Os demais discutem em qual posição a resposta deve ficar. O líder registra o consenso; ele muda a cada resposta.</p><p>Depois da discussão, você pode subir ou descer uma posição quando achar que o grupo errou e quiser corrigir a decisão. O poder pode ser usado uma vez por tema, e não na própria resposta. Poderes opostos se anulam.</p><p>Exemplo: se a letra secreta e a escolha do grupo são S, subir não altera a letra nem sua pontuação em Gênios das alterações.</p><p>Curta as respostas que achou muito boas, engraçadas ou com as quais concorda. Você não pode curtir sua própria resposta.<p> <strong>Escolha do tema:</strong> antes de cada rodada, serão apresentados cinco temas diferentes. Todos os jogadores deverão votar em um deles. O tema mais votado será escolhido para a rodada. Cada jogador poderá votar apenas uma vez. Em caso de empate, um dos temas empatados será sorteado. Os temas apresentados não se repetirão durante a partida. </p></p></div><p>${d.readyCount} de ${d.connectedCount} prontos</p><button class="btn btn-primary" ${d.ready?'disabled':''} onclick="send('ready')">${d.ready?'Aguardando os jogadores':'Prosseguir com o jogo'}</button>`; }
+function renderInstructions(d) { document.getElementById('gameContent').innerHTML=`<h1>Como jogar 🎮</h1><div class="help"><p>Todos formam um time e tentam acertar a letra secreta de cada resposta.</p><p>Cada jogador recebe uma letra e escreve uma resposta que combine com ela. Quando sua resposta estiver em discussão, fique em silêncio e não demonstre sua letra.</p><p>Os demais discutem em qual posição a resposta deve ficar. O líder registra o consenso; ele muda a cada resposta.</p><p>Depois da discussão, você pode subir ou descer uma posição quando achar que o grupo errou e quiser corrigir a decisão. O poder pode ser usado uma vez por tema, e não na própria resposta. Poderes opostos se anulam.</p><p>Exemplo: se a letra secreta e a escolha do grupo são S, subir não altera a letra nem sua pontuação em Gênios das alterações.</p><p>Curta as respostas que achou muito boas, engraçadas ou com as quais concorda. Você não pode curtir sua própria resposta.<p> <strong>Escolha do tema:</strong> antes de cada rodada, serão apresentados cinco temas diferentes. Todos os jogadores deverão votar em um deles. O tema mais votado será escolhido para a rodada. Selecione um tema e confirme seu voto. A quantidade de votos é oculta. Enquanto os outros não confirmam, use Editar voto para trocar a escolha e confirmar novamente. Em caso de empate, um dos temas empatados será sorteado. Os temas apresentados não se repetirão durante a partida. </p></p></div><p>${d.readyCount} de ${d.connectedCount} prontos</p><button class="btn btn-primary" ${d.ready?'disabled':''} onclick="send('ready')">${d.ready?'Aguardando os jogadores':'Prosseguir com o jogo'}</button>`; }
 function leaveGame() {send('leave'); clearSession(); ws=null; location.reload();}
 function renderFinal(d) {
  const total=d.results.reduce((s,r)=>s+r.score,0);
@@ -774,6 +806,7 @@ window.addEventListener('pagehide',saveSession);
 session=readSession();
 if(session && (!code || code.toUpperCase()===session.code)) {
  draftKey=session.draftKey||'';draft=session.draft||'';
+ themeVoteDraftKey=session.themeVoteDraftKey||'';themeVoteDraft=session.themeVoteDraft||'';
  if(session.snapshot?.phase) {myState=session.snapshot;renderState(myState);document.getElementById('displayCode').textContent=session.code;}
  connect(session.name,session.code,session.token);
 } else if(session && code) {clearSession();}

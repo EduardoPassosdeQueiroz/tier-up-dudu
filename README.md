@@ -16,7 +16,7 @@ Acesse `http://localhost:8080`.
 - Rankings: S, A, B, C, E (azul) e F (roxo).
 - Três temas por partida, escolhidos aleatoriamente entre os temas cadastrados; o tema atual é excluído do próximo sorteio.
 - Respostas: 120 segundos (2:00), inclusive após trocar o tema. Poderes: 30 segundos. Resumo dos poderes: 10 segundos ou avanço pelo host.
-- A troca de tema exige maioria absoluta dos jogadores conectados, inclusive quando o voto vem do host. A troca limpa as respostas e reinicia o tempo, mantendo as letras.
+- Antes de cada rodada, selecione um dos cinco temas e use “Confirmar voto”. As escolhas e contagens dos outros jogadores ficam ocultas. Enquanto a votação estiver aberta, “Editar voto” retira sua confirmação; escolha novamente e confirme para participar da decisão. A rodada começa quando todos os jogadores conectados confirmam. O mais votado vence; empates são sorteados entre os empatados.
 - Cada letra é sorteada independentemente para cada jogador. Todos devem confirmar a tela de instruções antes da partida.
 - Na revisão, é possível curtir respostas de outras pessoas. O resultado final mostra as rodadas, pontos das respostas, curtidas e contribuição individual dos poderes.
 - Cada jogador pode usar um poder por tema. Subidas e descidas se anulam antes de aplicar os limites S/F.

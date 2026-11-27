@@ -364,6 +364,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 				broadcastView(room)
 			}
+		case "editThemeVote":
+			if room != nil { room.EditThemeVote(playerID); broadcastView(room) }
 		case "voteTheme":
 			if room != nil {
 				var vote ThemeVoteMsg

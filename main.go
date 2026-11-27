@@ -58,7 +58,11 @@ type JudgeMsg struct {
 }
 
 type PowerMsg struct {
-	Choice int `json:"choice"`
+    Choice int `json:"choice"`
+}
+
+type ThemeVoteMsg struct {
+    Theme string `json:"theme"`
 }
 
 func generateCode() string {
@@ -268,23 +272,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		case "ping":
 			writeJSON(conn, map[string]string{"type": "pong"})
-		case "ready":
-			if room != nil { room.ReadyToPlay(playerID); broadcastView(room) }
-		case "editAnswer":
-			if room != nil { room.EditAnswer(playerID); broadcastView(room) }
-		case "like":
-			var like struct {
-				Round int `json:"round"`
-				PlayerID string `json:"playerID"`
-			}
-			if json.Unmarshal(msg.Data, &like) == nil && room != nil {
-				room.ToggleLike(playerID, like.Round, like.PlayerID)
-				broadcastView(room)
-			}
-		case "leave":
-			if room != nil { room.Leave(playerID); broadcastView(room) }
-			writeJSON(conn, map[string]string{"type": "left"})
-			return
 		case "start":
 			if room == nil {
 				continue
@@ -292,6 +279,32 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			room.StartRound(playerID)
 			broadcastView(room)
 
+		case "ready":
+			if room != nil {
+				room.Ready(playerID)
+				broadcastView(room)
+			}
+		case "editAnswer":
+			if room != nil {
+				room.EditAnswer(playerID)
+				broadcastView(room)
+			}
+		case "like":
+			var like struct {
+				Round int    `json:"round"`
+				Owner string `json:"owner"`
+			}
+			json.Unmarshal(msg.Data, &like)
+			if room != nil {
+				room.Like(playerID, like.Round, like.Owner)
+				broadcastView(room)
+			}
+		case "leave":
+			if room != nil {
+				room.Leave(playerID)
+				broadcastView(room)
+			}
+			return
 		case "answer":
 			if room == nil {
 				continue
@@ -327,10 +340,15 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			broadcastView(room)
 
 		case "continue":
-			if room != nil {
-				room.Continue(playerID)
-				broadcastView(room)
-			}
+    		if room != nil {
+        		room.Continue(playerID)
+        		broadcastView(room)
+    		}
+
+		case "returnLobby":
+    		if room != nil && room.ReturnToLobby(playerID) {
+        		broadcastView(room)
+    		}
 		case "kick":
 			var target struct {
 				PlayerID string `json:"playerID"`
@@ -346,9 +364,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				}
 				broadcastView(room)
 			}
-		case "changeTheme":
+		case "voteTheme":
 			if room != nil {
-				room.ChangeTheme(playerID)
+				var vote ThemeVoteMsg
+
+				if err := json.Unmarshal(msg.Data, &vote); err != nil {
+            		continue
+        		}
+				room.SubmitThemeVote(playerID, vote.Theme)
 				broadcastView(room)
 			}
 		}
